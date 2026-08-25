@@ -80,14 +80,14 @@
           <textarea id="userRequest" placeholder="Introduce aquí tu tarea, prompt o solicitud... Ej: Quiero crear un sistema automático para controlar el nivel de agua de un depósito."></textarea>
 
           <details>
-            <summary>⚙️ Avanzado (opcional): activar IA en línea con tu propia API key</summary>
+            <summary>⚙️ Avanzado (opcional): activar IA en línea con tu propia API key <span id="apiKeyStatusDot" title="Sin ninguna API key introducida" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--bad);margin-left:4px;vertical-align:middle;"></span></summary>
             <label style="display:flex;align-items:center;gap:6px;margin-top:6px;">
               <input type="checkbox" id="useClaude" style="width:auto;margin:0;">
-              <input id="apiKeyClaude" type="password" placeholder="sk-ant-... (Claude)" autocomplete="off" style="flex:1;margin-top:0;" oninput="if(this.value.trim()) $('useClaude').checked = true;">
+              <input id="apiKeyClaude" type="password" placeholder="sk-ant-... (Claude)" autocomplete="off" style="flex:1;margin-top:0;" oninput="if(this.value.trim()) $('useClaude').checked = true; updateApiKeyStatusDot();">
             </label>
             <label style="display:flex;align-items:center;gap:6px;margin-top:6px;">
               <input type="checkbox" id="useGemini" style="width:auto;margin:0;">
-              <input id="apiKeyGemini" type="password" placeholder="AIza... (Gemini)" autocomplete="off" style="flex:1;margin-top:0;" oninput="if(this.value.trim()) $('useGemini').checked = true;">
+              <input id="apiKeyGemini" type="password" placeholder="AIza... (Gemini)" autocomplete="off" style="flex:1;margin-top:0;" oninput="if(this.value.trim()) $('useGemini').checked = true; updateApiKeyStatusDot();">
             </label>
             <p style="font-size:10px;color:var(--muted);margin-top:6px;">Por defecto, con las dos casillas sin marcar, la herramienta NO hace ninguna llamada a internet: todo el análisis es local. Marca la casilla del proveedor que quieras usar (se marca sola al pegar una key). Si marcas solo una, se usa esa. Si marcas las dos, se usa Claude por defecto y solo se pasa a Gemini automáticamente si Claude no está disponible (error de red, key inválida, etc.). Ninguna key se guarda: se borran solas de estos campos tras cada compilación.</p>
           </details>
@@ -1527,6 +1527,21 @@ const cancelarCompilacionV401 = () => {
   if (currentAbortController) currentAbortController.abort();
 };
 
+// Fix v453: el desplegable "Avanzado" se queda cerrado casi siempre — sin
+// abrirlo no había forma de saber si ya había una API key cargada. Esto era
+// especialmente molesto en index-local.html: al recordar la key y recargar
+// la página, no se veía a simple vista si la restauración había funcionado.
+// El punto se actualiza en 3 momentos: al escribir/pegar en cualquiera de
+// los dos campos, al terminar una compilación (los campos pueden vaciarse o
+// no, según si se recuerda la key), y al cargar la página.
+const updateApiKeyStatusDot = () => {
+  const dot = $('apiKeyStatusDot');
+  if (!dot) return;
+  const hasKey = !!($('apiKeyClaude')?.value?.trim() || $('apiKeyGemini')?.value?.trim());
+  dot.style.background = hasKey ? 'var(--ok-text)' : 'var(--bad)';
+  dot.title = hasKey ? 'Hay una API key introducida' : 'Sin ninguna API key introducida';
+};
+
 const ejecutarCompilacionV401 = async () => {
   const promptEl = $('executablePrompt');
   const btn = $('btnCompile');
@@ -1562,6 +1577,7 @@ const ejecutarCompilacionV401 = async () => {
   // campo mientras se compilaba).
   if ($('apiKeyClaude')) $('apiKeyClaude').value = "";
   if ($('apiKeyGemini')) $('apiKeyGemini').value = "";
+  updateApiKeyStatusDot();
 
   if (res.error) {
     if (res.error === "EMPTY") alert("Por favor, introduce una petición.");
@@ -2111,6 +2127,7 @@ const ejecutarTestsV401 = async () => {
 
 window.onload = () => {
   renderHistory();
+  updateApiKeyStatusDot();
   logTrace("SYS", "Universal Semantic Task Compiler V401 (AI-Core) inicializado correctamente.");
 };
 </script>
