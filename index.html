@@ -422,6 +422,7 @@ const LANG_PACKS = {
       salud: /\b(salud|dieta|síntoma|médic\w*|enfermedad|veterinari\w*|duele\w*|dolor|fiebre|mare\w*|náuse\w*|vóm\w*|tos|estrés|estresad\w*|ansiedad|insomnio)\b/,
       finanzas: /\b(ahorr\w*|presupuesto|hipoteca|préstamo|inversi\w*|invert(?:ir|ido|ida|imos|iendo|í|ió)?|deuda|impuestos?|fiscal|finanzas)\b/,
       industrial: /\b(motor (diésel|diesel|de combustión|del coche|de coche|de moto)|maquinaria|mantenimiento mecánico|avería mecánica|pieza de recambio|(coche|moto|vehículo) (no arranca|averiad[oa])|se (me )?ha averiado (el coche|la moto)|taller mecánico|revisión mecánica)\b/,
+      cooking: /\b(receta\w*|cocino|cocinar\w*|cocinando|cocinad[oa]|cocinamos|cocinan|guiso\w*|hornear\w*|ingredientes para|c[oó]mo (se hace|preparo|cocino)|plato (casero|para cenar|para comer))\b/,
       offline: /\b(offline|sin internet|sin conexión|sin wifi)\b/,
       urgency: /\b(urgente|crític[oa]|cuanto antes|lo antes posible|en producción|inmediato)\b/
     },
@@ -438,7 +439,8 @@ const LANG_PACKS = {
       legal: "Orientar sobre el marco legal o normativo aplicable y sus implicaciones, sin sustituir asesoría profesional cuando sea necesaria.",
       salud: "Proporcionar información de salud o bienestar orientativa, señalando cuándo conviene acudir a un profesional sanitario.",
       finanzas: "Analizar la situación financiera planteada y presentar opciones con sus implicaciones económicas.",
-      industrial: "Diagnosticar y resolver un problema técnico o mecánico con criterios de mantenimiento y seguridad."
+      industrial: "Diagnosticar y resolver un problema técnico o mecánico con criterios de mantenimiento y seguridad.",
+      cooking: "Proponer una receta o técnica culinaria clara, adaptada a los ingredientes, el tiempo y el nivel de quien cocina."
     },
     subGoalsBase: [
       "Comprender a fondo el contexto y las condiciones de la petición.",
@@ -467,7 +469,11 @@ const LANG_PACKS = {
       legal: () => [{ objective: "Identificar el marco legal o normativo aplicable y los riesgos de incumplimiento.", priority: "HIGH" }],
       salud: () => [{ objective: "Recopilar información de salud relevante, señalando cuándo conviene consultar a un profesional sanitario.", priority: "HIGH" }],
       finanzas: () => [{ objective: "Analizar la situación financiera y las opciones disponibles con sus implicaciones económicas.", priority: "HIGH" }],
-      industrial: () => [{ objective: "Diagnosticar el estado técnico/mecánico y los puntos críticos de mantenimiento.", priority: "HIGH" }]
+      industrial: () => [{ objective: "Diagnosticar el estado técnico/mecánico y los puntos críticos de mantenimiento.", priority: "HIGH" }],
+      cooking: () => [
+        { objective: "Seleccionar ingredientes y proporciones adecuados al resultado buscado.", priority: "HIGH" },
+        { objective: "Detallar los pasos de preparación y cocción en orden, con tiempos y puntos críticos.", priority: "HIGH" }
+      ]
     },
     // Los nombres de capacidad se mantienen en inglés/mayúsculas en TODOS los
     // idiomas a propósito — son códigos internos del contrato, no prosa.
@@ -483,7 +489,8 @@ const LANG_PACKS = {
       legal: ["LEGAL_RESEARCH", "COMPLIANCE_ANALYSIS"],
       salud: ["HEALTH_INFORMATION", "PROFESSIONAL_REFERRAL_AWARENESS"],
       finanzas: ["FINANCIAL_ANALYSIS", "COST_ESTIMATION"],
-      industrial: ["TECHNICAL_DIAGNOSIS", "MAINTENANCE_PLANNING"]
+      industrial: ["TECHNICAL_DIAGNOSIS", "MAINTENANCE_PLANNING"],
+      cooking: ["RECIPE_DEVELOPMENT", "CULINARY_TECHNIQUE"]
     },
     ingredients: {
       formato: /\b(lista|tabla|un informe|un documento|email|correo|guion|resumen|esquema|paso a paso|código|imagen|power ?point|excel|pdf|puntos|apartados)\b/,
@@ -513,6 +520,7 @@ const LANG_PACKS = {
       writing: "Texto redactado",
       planning: "Plan / Itinerario",
       learning: "Explicación clara / Guía didáctica",
+      cooking: "Receta paso a paso",
       default: "Informe / Recomendación estructurada"
     }
   },
@@ -538,6 +546,7 @@ const LANG_PACKS = {
       salud: /\b(health|diet|symptom\w*|doctor|illness|disease|vet\w*|pain\w*|hurt\w*|fever|headache|nause\w*|vomit\w*|cough\w*|stress\w*|anxiet\w*|insomnia)\b/,
       finanzas: /\b(sav\w*|budget|mortgage|loan|invest(?:s|ed|ing|ment|ments)?|debt|tax\w*|financ\w*)\b/,
       industrial: /\b(diesel engine|machinery|mechanical maintenance|mechanical (failure|breakdown)|spare part|car (won't|wont|doesn't|does not) start|car broke down|repair shop|mechanic)\b/,
+      cooking: /\b(recipe\w*|cooking|cooked|bake\w*|how (do|to) (i )?(make|cook|prepare)|ingredients for|homemade dish)\b/,
       offline: /\b(offline|no internet|no connection|no wifi)\b/,
       urgency: /\b(urgent|critical|asap|as soon as possible|in production|immediat\w*)\b/
     },
@@ -554,7 +563,8 @@ const LANG_PACKS = {
       legal: "Provide guidance on the applicable legal or regulatory framework and its implications, without substituting professional advice when necessary.",
       salud: "Provide informational health/wellness guidance, indicating when it's advisable to see a healthcare professional.",
       finanzas: "Analyze the financial situation presented and outline options with their economic implications.",
-      industrial: "Diagnose and resolve a technical or mechanical issue with maintenance and safety criteria in mind."
+      industrial: "Diagnose and resolve a technical or mechanical issue with maintenance and safety criteria in mind.",
+      cooking: "Propose a clear recipe or cooking technique adapted to the ingredients, time, and skill level of the person cooking."
     },
     subGoalsBase: [
       "Fully understand the context and conditions of the request.",
@@ -583,7 +593,11 @@ const LANG_PACKS = {
       legal: () => [{ objective: "Identify the applicable legal or regulatory framework and the risks of non-compliance.", priority: "HIGH" }],
       salud: () => [{ objective: "Gather relevant health information, indicating when it's advisable to consult a healthcare professional.", priority: "HIGH" }],
       finanzas: () => [{ objective: "Analyze the financial situation and available options along with their economic implications.", priority: "HIGH" }],
-      industrial: () => [{ objective: "Diagnose the technical/mechanical condition and the critical maintenance points.", priority: "HIGH" }]
+      industrial: () => [{ objective: "Diagnose the technical/mechanical condition and the critical maintenance points.", priority: "HIGH" }],
+      cooking: () => [
+        { objective: "Select ingredients and proportions suited to the desired result.", priority: "HIGH" },
+        { objective: "Detail the preparation and cooking steps in order, with timings and critical points.", priority: "HIGH" }
+      ]
     },
     domainCapabilities: {
       hardwareSystem: ["REQUIREMENTS_ENGINEERING", "SYSTEM_ARCHITECTURE", "COMPONENT_ANALYSIS", "FEASIBILITY_ANALYSIS", "COST_ESTIMATION", "RISK_ANALYSIS"],
@@ -597,7 +611,8 @@ const LANG_PACKS = {
       legal: ["LEGAL_RESEARCH", "COMPLIANCE_ANALYSIS"],
       salud: ["HEALTH_INFORMATION", "PROFESSIONAL_REFERRAL_AWARENESS"],
       finanzas: ["FINANCIAL_ANALYSIS", "COST_ESTIMATION"],
-      industrial: ["TECHNICAL_DIAGNOSIS", "MAINTENANCE_PLANNING"]
+      industrial: ["TECHNICAL_DIAGNOSIS", "MAINTENANCE_PLANNING"],
+      cooking: ["RECIPE_DEVELOPMENT", "CULINARY_TECHNIQUE"]
     },
     ingredients: {
       formato: /\b(list|table|a report|a document|email|script|summary|outline|step by step|code|image|power ?point|excel|pdf|bullet points|sections)\b/,
@@ -627,12 +642,13 @@ const LANG_PACKS = {
       writing: "Written text",
       planning: "Plan / Itinerary",
       learning: "Clear explanation / Educational guide",
+      cooking: "Step-by-step recipe",
       default: "Report / Structured recommendation"
     }
   }
 };
 
-const DOMAIN_KEYS = ["hardwareSystem", "software", "purchaseCompare", "analysis", "writing", "learning", "planning", "legal", "salud", "finanzas", "industrial"];
+const DOMAIN_KEYS = ["hardwareSystem", "software", "purchaseCompare", "analysis", "writing", "learning", "planning", "legal", "salud", "finanzas", "industrial", "cooking"];
 
 // Heurística de detección de idioma: cuenta palabras funcionales frecuentes
 // de cada paquete; en empate o texto vacío, gana español (idioma nativo de
@@ -707,6 +723,7 @@ function buildUnderstandingFromPack(rawGoal, pack) {
     : flags.writing ? pack.deliverables.writing
     : flags.planning ? pack.deliverables.planning
     : flags.learning ? pack.deliverables.learning
+    : flags.cooking ? pack.deliverables.cooking
     : pack.deliverables.default;
 
   return {
@@ -1467,6 +1484,11 @@ const ejecutarTestsV401 = async () => {
     { id: "T-64", name: "salud EN reconoce stress/anxiety/insomnia (fix v422, mismo patrón en inglés)", in: "I have been stressed and can't sleep well for weeks, I think I have insomnia", assert: r => !r.error && r.ir.capabilityPlan.required.includes("HEALTH_INFORMATION") },
     { id: "T-65", name: "salud EN no colisiona con un cuento para dormir a un niño (fix v422, regresión equivalente en inglés)", in: "I need a short bedtime story for my 4 year old", assert: r => !r.error && !r.ir.capabilityPlan.required.includes("HEALTH_INFORMATION") },
     { id: "T-66", name: "software ES reconoce 'inteligencia artificial'/'machine learning' como frase compuesta, sin depender de una 'IA' suelta de alto riesgo de colisión (fix v422, hallado con pruebas de tema aleatorio)", in: "Quiero integrar inteligencia artificial en mi tienda online para recomendar productos", assert: r => !r.error && r.ir.capabilityPlan.required.includes("SOFTWARE_DESIGN") },
+    { id: "T-67", name: "Nuevo dominio 'cooking' ES reconoce 'receta' (fix v423: dominio nuevo, ningún tema culinario estaba cubierto por los 11 dominios previos)", in: "Necesito una receta de lasaña casera para 6 personas", assert: r => !r.error && r.ir.capabilityPlan.required.includes("RECIPE_DEVELOPMENT") },
+    { id: "T-68", name: "cooking ES reconoce 'cocino'/'cocinamos' (conjugaciones sin acento en 'como', uso muy común) sin exigir el infinitivo 'cocinar' (fix v423)", in: "No se como cocino un buen arroz, siempre se me pasa", assert: r => !r.error && r.ir.capabilityPlan.required.includes("RECIPE_DEVELOPMENT") },
+    { id: "T-69", name: "cooking ES no colisiona con 'cocina' como sustantivo (la habitación), ej. una reforma (fix v423, regresión: cocin\\w* genérico habría capturado 'cocina'/'cocinas' del mueble/habitación)", in: "Quiero renovar mi cocina, el suelo está muy viejo", assert: r => !r.error && !r.ir.capabilityPlan.required.includes("RECIPE_DEVELOPMENT") },
+    { id: "T-70", name: "Nuevo dominio 'cooking' EN reconoce 'recipe'/'how do I cook' (fix v423, mismo dominio en inglés)", in: "I need a recipe for homemade lasagna, and how do I cook the pasta just right?", assert: r => !r.error && r.ir.capabilityPlan.required.includes("RECIPE_DEVELOPMENT") },
+    { id: "T-71", name: "cooking EN no colisiona con 'cook' como sustantivo/profesión suelta (fix v423, regresión: se excluyó deliberadamente la palabra 'cook' sola, solo se aceptan 'cooking'/'cooked')", in: "The cook was late for his shift today", assert: r => !r.error && !r.ir.capabilityPlan.required.includes("RECIPE_DEVELOPMENT") },
     { id: "T-46", name: "'una carta' sigue reconociéndose como encargo de escritura real, sin necesidad de otra palabra de escritura presente (no regresión del fix v416)", in: "Necesito una carta de recomendación para mi antiguo empleado", assert: r => !r.error && r.ir.capabilityPlan.required.includes("WRITING") },
     { id: "T-47", name: "Auto-detección de idioma reconoce inglés y lo declara en el contrato (fix v417)", in: "I want to create an automatic system to control the water level of a tank", assert: r => !r.error && r.ir.understanding.lang === "en" && r.executablePrompt.includes("IDIOMA DE ANÁLISIS: en") },
     { id: "T-48", name: "Auto-detección de idioma reconoce español (no regresión: sigue siendo el idioma por defecto)", in: "Quiero crear un sistema automático para controlar el nivel de agua de un depósito", assert: r => !r.error && r.ir.understanding.lang === "es" },
