@@ -75,16 +75,16 @@
           <div class="help-tooltip" id="helpRequest">
             <b>Definición:</b> Introduce cualquier tarea en lenguaje natural, de cualquier materia, aunque no sepas nada de IA ni de "prompts". Por defecto el análisis es 100% local (sin conexión a internet ni API key): detecta qué te falta especificar (formato, tono, público, restricciones...) y te lo pregunta, para ayudarte a construir un prompt eficaz paso a paso.
           </div>
-          <textarea id="userRequest" placeholder="Introduce aquí tu tarea, prompt o solicitud...">quiero que analices el documento y revises el generador de promt si es totalmente funcinal, autonomo interpretando el texto de solicitud de un inexperto y convirtiendolo en una peticion mas avanzada. Asi elegir bien todas las variables para generar el correcto y definitivo promp como el que crearia una IA experta en arquitectura de promt</textarea>
+          <textarea id="userRequest" placeholder="Introduce aquí tu tarea, prompt o solicitud... Ej: Quiero crear un sistema automático para controlar el nivel de agua de un depósito."></textarea>
 
           <details>
             <summary>⚙️ Avanzado (opcional): activar IA en línea con tu propia API key</summary>
             <input id="apiKey" type="password" placeholder="sk-ant-... (déjalo vacío para trabajar 100% local, sin internet)" autocomplete="off" style="margin-top:6px">
-            <p style="font-size:10px;color:var(--muted);margin-top:-4px;">Por defecto, con este campo vacío, la herramienta NO hace ninguna llamada a internet: todo el análisis es local. Recomendado dejarlo vacío en equipos sin acceso a internet o con restricciones. Solo se contacta con la API de Anthropic si rellenas tu propia key aquí.</p>
+            <p style="font-size:10px;color:var(--muted);margin-top:-4px;">Por defecto, con este campo vacío, la herramienta NO hace ninguna llamada a internet: todo el análisis es local. Recomendado dejarlo vacío en equipos sin acceso a internet o con restricciones. Solo se contacta con la API de Anthropic si rellenas tu propia key aquí. La key nunca se guarda: se borra sola de este campo tras cada compilación.</p>
           </details>
 
           <div class="row" style="margin-top: 8px;">
-            <button id="btnCompile" onclick="ejecutarCompilacionV401()">Compilar a Contrato Canónico V401</button>
+            <button id="btnCompile" onclick="ejecutarCompilacionV401()">Crear Prompt</button>
             <button class="danger" id="btnClearRequest" onclick="clearRequestOnly()">Borrar Petición</button>
           </div>
         </div>
@@ -98,6 +98,19 @@
           <option value="CHATGPT">OpenAI ChatGPT (Markdown & Direct Execution)</option>
           <option value="LOCAL">Local Model (Compact & Explicit)</option>
           <option value="AKI">AKI Execution Contract</option>
+        </select>
+
+        <div class="label-header">
+          <label for="requestLanguage">🌐 Idioma de análisis (motor local)</label>
+          <button class="help-btn" onclick="toggleHelp('helpLanguage')" title="Ayuda">?</button>
+        </div>
+        <div class="help-tooltip" id="helpLanguage">
+          Sin IA, el motor local reconoce palabras clave — necesita un diccionario distinto por idioma. Auto-detectar mira palabras funcionales frecuentes (el/la/de... vs the/a/is...) para elegir. Si tu petición mezcla idiomas o la detección falla, elige el idioma manualmente. Se declara siempre en el contrato (sección 0), nunca en silencio.
+        </div>
+        <select id="requestLanguage">
+          <option value="auto">Auto-detectar</option>
+          <option value="es">Español</option>
+          <option value="en">English</option>
         </select>
 
         <div class="label-header">
@@ -146,9 +159,9 @@
 
         <div id="tab-prompt">
           <div class="row" style="margin-bottom: 8px;">
-            <button class="secondary" onclick="copyContent('executablePrompt')" style="border-color: var(--accent); color: var(--accent);">Copiar Contrato Canónico V401</button>
+            <button class="secondary" onclick="copyContent('executablePrompt')" style="border-color: var(--accent); color: var(--accent);">Copiar Resultado de Prompt</button>
           </div>
-          <pre id="executablePrompt">Haz clic en "Compilar a Contrato Canónico V401" para generar el contrato orientado a objetivos.</pre>
+          <pre id="executablePrompt">Haz clic en "Crear Prompt" para generar el contrato orientado a objetivos.</pre>
         </div>
 
         <div id="tab-semantic" style="display: none;">
@@ -213,6 +226,17 @@
  * (assumedDefaults, sección 1.5 del contrato: declarado y editable, nunca
  * oculto) y solo queda como pregunta real (ambiguities, sección 1.6) lo que
  * NO se puede asumir con seguridad, como una cifra de presupuesto.
+ *
+ * Fix v417 (a petición del usuario): el motor local es multi-idioma.
+ * LANG_PACKS contiene un diccionario por idioma (regex de dominio,
+ * ingredientes universales, textos generados); buildUnderstandingFromPack
+ * implementa el ALGORITMO una sola vez, compartido por todos los idiomas.
+ * Añadir un idioma nuevo es rellenar un LANG_PACKS.xx con la misma forma
+ * que "es"/"en" — no tocar el algoritmo. Sigue sin haber comprensión real:
+ * es la misma heurística de palabras clave, ahora en más de un diccionario.
+ * El idioma se detecta automáticamente (o se elige a mano en la UI) y
+ * SIEMPRE se declara en el contrato (understanding.lang, sección 0) — igual
+ * que la fuente del análisis (ai/local), nunca en silencio.
  */
 
 const $ = id => document.getElementById(id);
@@ -241,7 +265,7 @@ const switchTab = tabId => {
 };
 
 const copyContent = async elementId => {
-  try { await navigator.clipboard.writeText($(elementId)?.textContent || ""); alert('Contrato copiado al portapapeles.'); }
+  try { await navigator.clipboard.writeText($(elementId)?.textContent || ""); alert('Resultado de prompt copiado al portapapeles.'); }
   catch(e) { alert("Error al copiar al portapapeles"); }
 };
 
@@ -301,6 +325,12 @@ const loadFromHistory = i => {
 
 // ==========================================
 // NÚCLEO DE COMPRENSIÓN — IA REAL (motor principal)
+// Fix v407: el modelo estaba fijado a "claude-sonnet-4-6", un id que no
+// existe — cada llamada fallaba y caía silenciosamente a heurística local
+// sin que se notara en la UI (solo se veía en el trace log). Corregido a
+// "claude-sonnet-5". Sigue siendo opt-in (solo se llama si el usuario
+// rellena su propia key en "Avanzado"); el motor local sigue siendo el
+// camino por defecto — ver nota en README sobre por qué no cambia.
 // ==========================================
 async function aiUnderstanding(rawGoal, apiKey) {
   const sys = `Eres un analista universal de peticiones para un compilador de prompts orientado a objetivos.
@@ -330,7 +360,7 @@ Si la petición mezcla varios dominios (p. ej. hardware y software, o análisis 
   }
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST", headers,
-    body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1500, system: sys, messages: [{ role: "user", content: rawGoal }] })
+    body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 1500, system: sys, messages: [{ role: "user", content: rawGoal }] })
   });
   if (!response.ok) throw new Error("API_ERROR_" + response.status);
   const data = await response.json();
@@ -356,147 +386,371 @@ Si la petición mezcla varios dominios (p. ej. hardware y software, o análisis 
 //     (ambiguities) — este es el que sirve a alguien sin conocimientos de
 //     IA, sea cual sea el tema de su petición.
 // ==========================================
-function localHeuristicUnderstanding(rawGoal) {
+// ==========================================
+// PAQUETES DE IDIOMA — Fix v417 (a petición del usuario: "un apartado para
+// introducir idiomas si fuera necesario"). Sin IA no hay comprensión real
+// en ningún idioma — esto sigue siendo reconocimiento de palabras clave,
+// ahora simplemente en dos diccionarios en vez de uno. Añadir un idioma
+// nuevo en el futuro es rellenar un LANG_PACKS.xx con la misma forma, no
+// tocar el algoritmo de detección/generación (buildUnderstandingFromPack).
+//
+// Lecciones ya aprendidas en el paquete "es" (aplican igual a cualquier
+// paquete nuevo, incluido "en"):
+//  - Nunca una palabra suelta de alto riesgo de colisión ("local", "motor",
+//    "documento", "carta", "como") — exigir frase compuesta o artículo.
+//  - Los verbos regulares necesitan \w* en la raíz para cubrir conjugaciones
+//    (programa\w*); los irregulares con cambio de raíz (despedir, comprar
+//    vs. comprender) necesitan listar formas explícitas o excluir a mano,
+//    nunca un \w* genérico que colisione con una palabra no relacionada.
+// ==========================================
+const LANG_PACKS = {
+  es: {
+    code: "es",
+    // Palabras funcionales muy frecuentes, usadas solo para detectar el
+    // idioma de la petición (no para el análisis de dominio en sí).
+    detectWords: /\b(el|la|los|las|de|que|para|con|un|una|es|en|por|del|al|se|su|más|como|pero|muy)\b/g,
+    accentHint: /[áéíóúñ¿¡]/,
+    domains: {
+      hardwareSystem: /\b(depósito|agua|sistema|automático|control|sensor|actuador)\b/,
+      software: /\b(html|programa\w*|aplicaci\w*|gestion\w*|javascript|códig\w*|software|app\w*|python|backend|frontend|base de datos|database|web)\b/,
+      purchaseCompare: /\b(compar\w*|diferencia|precio|coste|barat\w*|comprar\w*|compro|compra|compras|compramos|compran|compré|compró|comprando|comprado|producto)\b/,
+      analysis: /\b(analiz\w*|estudi\w*|revis\w*|audit\w*|informe)\b/,
+      writing: /\b(escrib\w*|redact\w*|una carta|email|correo|artículo|guion|historia|cuento)\b/,
+      learning: /\b(explic\w*|enseñ\w*|aprend\w*|cómo funciona|qué es|entender)\b/,
+      planning: /\b(planes?|planific\w*|viaje|evento|itinerario|calendario)\b/,
+      legal: /\b(contrato|demanda|alquiler|despid\w*|desped\w*|legal|abogad\w*|normativa|denunci\w*)\b/,
+      salud: /\b(salud|dieta|síntoma|médic\w*|enfermedad|veterinari\w*)\b/,
+      finanzas: /\b(ahorr\w*|presupuesto|hipoteca|préstamo|inversión|deuda|impuestos?|fiscal|finanzas)\b/,
+      industrial: /\b(motor (diésel|diesel|de combustión|del coche|de coche|de moto)|maquinaria|mantenimiento mecánico|avería mecánica|pieza de recambio|(coche|moto|vehículo) (no arranca|averiad[oa])|se (me )?ha averiado (el coche|la moto)|taller mecánico|revisión mecánica)\b/,
+      offline: /\b(offline|sin internet|sin conexión|sin wifi)\b/,
+      urgency: /\b(urgente|crític[oa]|cuanto antes|lo antes posible|en producción|inmediato)\b/
+    },
+    inferredGoal: {
+      default: "Resolver la petición del usuario proporcionando una solución integral y razonada.",
+      hardwareSystem_software: "Diseñar un sistema físico-digital completo, cubriendo tanto el hardware/control como el software que lo gestiona.",
+      hardwareSystem: "Diseñar y estructurar una solución técnica o sistema físico a medida.",
+      software: "Diseñar e implementar una solución de software según lo solicitado.",
+      purchaseCompare: "Investigar alternativas, contrastarlas y recomendar la opción óptima mediante criterios objetivos.",
+      analysis: "Examinar rigurosamente la materia aportada para extraer conclusiones, riesgos y directrices.",
+      writing: "Redactar un texto claro y bien estructurado que cumpla el propósito comunicativo indicado.",
+      learning: "Explicar el tema de forma clara y accesible, adaptada al nivel de quien pregunta.",
+      planning: "Organizar un plan detallado y realista que cumpla el objetivo indicado.",
+      legal: "Orientar sobre el marco legal o normativo aplicable y sus implicaciones, sin sustituir asesoría profesional cuando sea necesaria.",
+      salud: "Proporcionar información de salud o bienestar orientativa, señalando cuándo conviene acudir a un profesional sanitario.",
+      finanzas: "Analizar la situación financiera planteada y presentar opciones con sus implicaciones económicas.",
+      industrial: "Diagnosticar y resolver un problema técnico o mecánico con criterios de mantenimiento y seguridad."
+    },
+    subGoalsBase: [
+      "Comprender a fondo el contexto y las condiciones de la petición.",
+      "Investigar y recopilar la información, componentes o alternativas necesarias."
+    ],
+    subGoalsFinal: "Sintetizar la respuesta final con conclusiones claras y recomendaciones razonadas.",
+    subGoalsFallback: "Analizar alternativas y contrastarlas mediante criterios objetivos.",
+    domainSubGoals: {
+      hardwareSystem: hasUrgency => [
+        { objective: "Identificar sensores, actuadores y componentes de hardware necesarios.", priority: "HIGH" },
+        { objective: "Diseñar la arquitectura lógica y física del sistema.", priority: "HIGH" },
+        { objective: "Estimar costes, viabilidad y analizar riesgos de fallo.", priority: hasUrgency ? "HIGH" : "MEDIUM" }
+      ],
+      software: () => [
+        { objective: "Establecer la ingeniería de requisitos y diseño de software.", priority: "HIGH" },
+        { objective: "Desarrollar la implementación técnica asegurando compatibilidad con el entorno indicado.", priority: "HIGH" }
+      ],
+      purchaseCompare: () => [{ objective: "Comparar alternativas del mercado mediante criterios objetivos (precio, calidad, fiabilidad).", priority: "HIGH" }],
+      writing: () => [{ objective: "Estructurar el texto (introducción, desarrollo, cierre) según su propósito.", priority: "HIGH" }],
+      learning: () => [{ objective: "Adaptar el nivel de la explicación a alguien sin conocimientos previos del tema.", priority: "HIGH" }],
+      planning: () => [{ objective: "Ordenar el plan en pasos o etapas con tiempos realistas.", priority: "HIGH" }],
+      analysis: () => [
+        { objective: "Examinar la materia con rigor, contrastando fuentes y detectando riesgos o inconsistencias.", priority: "HIGH" },
+        { objective: "Extraer conclusiones y directrices accionables respaldadas por lo analizado.", priority: "HIGH" }
+      ],
+      legal: () => [{ objective: "Identificar el marco legal o normativo aplicable y los riesgos de incumplimiento.", priority: "HIGH" }],
+      salud: () => [{ objective: "Recopilar información de salud relevante, señalando cuándo conviene consultar a un profesional sanitario.", priority: "HIGH" }],
+      finanzas: () => [{ objective: "Analizar la situación financiera y las opciones disponibles con sus implicaciones económicas.", priority: "HIGH" }],
+      industrial: () => [{ objective: "Diagnosticar el estado técnico/mecánico y los puntos críticos de mantenimiento.", priority: "HIGH" }]
+    },
+    // Los nombres de capacidad se mantienen en inglés/mayúsculas en TODOS los
+    // idiomas a propósito — son códigos internos del contrato, no prosa.
+    domainCapabilities: {
+      hardwareSystem: ["REQUIREMENTS_ENGINEERING", "SYSTEM_ARCHITECTURE", "COMPONENT_ANALYSIS", "FEASIBILITY_ANALYSIS", "COST_ESTIMATION", "RISK_ANALYSIS"],
+      software: ["SOFTWARE_DESIGN", "IMPLEMENTATION", "TESTING"],
+      offline: ["OFFLINE_COMPATIBILITY_ANALYSIS"],
+      purchaseCompare: ["PRODUCT_DISCOVERY", "PRICE_COMPARISON", "VALUE_ANALYSIS"],
+      writing: ["WRITING", "STRUCTURE_DESIGN"],
+      learning: ["TEACHING", "SIMPLIFICATION"],
+      planning: ["PLANNING", "SCHEDULING"],
+      analysis: ["CRITICAL_ANALYSIS", "RISK_ANALYSIS"],
+      legal: ["LEGAL_RESEARCH", "COMPLIANCE_ANALYSIS"],
+      salud: ["HEALTH_INFORMATION", "PROFESSIONAL_REFERRAL_AWARENESS"],
+      finanzas: ["FINANCIAL_ANALYSIS", "COST_ESTIMATION"],
+      industrial: ["TECHNICAL_DIAGNOSIS", "MAINTENANCE_PLANNING"]
+    },
+    ingredients: {
+      formato: /\b(lista|tabla|un informe|un documento|email|correo|guion|resumen|esquema|paso a paso|código|imagen|power ?point|excel|pdf|puntos|apartados)\b/,
+      tono: /\b(formal|informal|profesional|sencill[oa]|técnic[oa]|coloquial|creativo|serio|divertido|para niños|para principiantes|cercan[oa])\b/,
+      audiencia: /\bpara (mi|mis|un|una|los|las|niños|clientes|equipo|jefe|estudiantes|empresa|principiantes)\b|\b(dirigido a|orientado a|audiencia:|público:)/,
+      longitud: /\b(\d+\s*(palabras|páginas|líneas|minutos)|breve|cort[oa]|extens[oa]|detallad[oa]|resumid[oa])\b/,
+      ejemplos: /\b(como (el|la|los|las|un|una)|similar a|al estilo de|parecido a|por ejemplo|ejemplo)\b/,
+      restricciones: /\b(offline|sin internet|sin conexión|presupuesto|gratis|gratuito|plazo|antes del|máximo|mínimo|sin usar)\b/,
+      criterios: /\b(que (sea|tenga|incluya|logre|permita)|el objetivo es|para que|de forma que|con el fin de)\b/
+    },
+    expertSignal: /\b(soy (programador\w*|ingenier\w*|médic\w*|abogad\w*|contable|electricista|fontaner\w*|profesional del sector))\b|nivel técnico|a nivel avanzado|para un experto|en profundidad técnica|ya tengo conocimientos (previos|del tema|de esto)/,
+    assumedText: {
+      formato: () => "organizado en pasos o puntos claros, fácil de seguir",
+      tono: isExpert => isExpert ? "técnico y preciso; no hace falta explicar los conceptos básicos" : "claro, cercano y sin tecnicismos innecesarios; si se usa algún término técnico, se explica brevemente",
+      audiencia: isExpert => isExpert ? "alguien con conocimientos previos del tema" : "alguien sin conocimientos previos del tema",
+      longitud: () => "el detalle necesario para ser accionable, sin relleno superfluo",
+      criterios: () => "accionable (pasos concretos, no solo teoría), explicando brevemente el porqué de cada recomendación"
+    },
+    ambiguityText: {
+      restrictions: "¿Hay un presupuesto, plazo o restricción concreta que deba respetarse?",
+      examples: "¿Tienes algún ejemplo o referencia a la que te gustaría que se pareciera el resultado? (opcional, ayuda a afinar el estilo)"
+    },
+    desiredOutcome: "Un resultado útil, validado y estructurado que satisfaga plenamente el objetivo real, aplicando las asunciones declaradas y resolviendo las preguntas realmente pendientes.",
+    userConstraintsOffline: "Funcionalidad offline requerida",
+    deliverables: {
+      technical: "Solución técnica / Diseño",
+      writing: "Texto redactado",
+      planning: "Plan / Itinerario",
+      learning: "Explicación clara / Guía didáctica",
+      default: "Informe / Recomendación estructurada"
+    }
+  },
+  en: {
+    code: "en",
+    detectWords: /\b(the|a|an|is|for|with|and|to|of|in|on|my|your|this|that|it|be)\b/g,
+    accentHint: null,
+    domains: {
+      hardwareSystem: /\b(tank|reservoir|water level|system|automatic|automated|control|sensor|actuator)\b/,
+      software: /\b(html|program\w*|application|app\w*|manag\w*|javascript|code\w*|software|python|backend|frontend|database|web ?site|web app)\b/,
+      // "buy\w*" no cubre el pasado irregular "bought" — se añade a mano,
+      // igual que "comprar\w*" no cubría "compro" en español (mismo bug).
+      purchaseCompare: /\b(compar\w*|comparison|difference|price|cost\w*|cheap\w*|buy\w*|bought|purchas\w*|product)\b/,
+      // "analyz/analys" cubre las dos grafías (US/UK).
+      analysis: /\b(analyz\w*|analys\w*|stud\w*|review\w*|audit\w*|report)\b/,
+      // "writ\w*" no cubre "wrote"/"written" (irregular) — se añaden a mano.
+      // "a letter" en vez de "letter" suelta, mismo criterio que "una carta"
+      // en español (evita colisión con usos no relacionados de "letter").
+      writing: /\b(writ\w*|wrote|written|draft\w*|a letter|email|article|script|story|tale)\b/,
+      learning: /\b(explain\w*|teach\w*|taught|learn\w*|how (does|do|it works)|what is|understand\w*)\b/,
+      planning: /\b(plan\w*|trip|itinerary|calendar|schedul\w*)\b/,
+      legal: /\b(contract|lawsuit|lease|fired|dismiss\w*|legal|lawyer|attorney|regulation\w*|su\w*ed|sue)\b/,
+      salud: /\b(health|diet|symptom\w*|doctor|illness|disease|vet\w*)\b/,
+      finanzas: /\b(sav\w*|budget|mortgage|loan|investment|debt|tax\w*|financ\w*)\b/,
+      industrial: /\b(diesel engine|machinery|mechanical maintenance|mechanical (failure|breakdown)|spare part|car (won't|wont|doesn't|does not) start|car broke down|repair shop|mechanic)\b/,
+      offline: /\b(offline|no internet|no connection|no wifi)\b/,
+      urgency: /\b(urgent|critical|asap|as soon as possible|in production|immediat\w*)\b/
+    },
+    inferredGoal: {
+      default: "Resolve the user's request by providing a comprehensive, well-reasoned solution.",
+      hardwareSystem_software: "Design a complete physical-digital system, covering both the hardware/control and the software that manages it.",
+      hardwareSystem: "Design and structure a custom technical solution or physical system.",
+      software: "Design and implement a software solution as requested.",
+      purchaseCompare: "Research alternatives, compare them, and recommend the optimal option using objective criteria.",
+      analysis: "Rigorously examine the subject matter to extract conclusions, risks, and guidelines.",
+      writing: "Write a clear, well-structured text that fulfills the stated communicative purpose.",
+      learning: "Explain the topic clearly and accessibly, adapted to the asker's level.",
+      planning: "Organize a detailed, realistic plan that fulfills the stated goal.",
+      legal: "Provide guidance on the applicable legal or regulatory framework and its implications, without substituting professional advice when necessary.",
+      salud: "Provide informational health/wellness guidance, indicating when it's advisable to see a healthcare professional.",
+      finanzas: "Analyze the financial situation presented and outline options with their economic implications.",
+      industrial: "Diagnose and resolve a technical or mechanical issue with maintenance and safety criteria in mind."
+    },
+    subGoalsBase: [
+      "Fully understand the context and conditions of the request.",
+      "Research and gather the necessary information, components, or alternatives."
+    ],
+    subGoalsFinal: "Synthesize the final response with clear conclusions and well-reasoned recommendations.",
+    subGoalsFallback: "Analyze alternatives and compare them using objective criteria.",
+    domainSubGoals: {
+      hardwareSystem: hasUrgency => [
+        { objective: "Identify the sensors, actuators, and hardware components needed.", priority: "HIGH" },
+        { objective: "Design the system's logical and physical architecture.", priority: "HIGH" },
+        { objective: "Estimate costs, feasibility, and analyze failure risks.", priority: hasUrgency ? "HIGH" : "MEDIUM" }
+      ],
+      software: () => [
+        { objective: "Establish software requirements engineering and design.", priority: "HIGH" },
+        { objective: "Develop the technical implementation ensuring compatibility with the stated environment.", priority: "HIGH" }
+      ],
+      purchaseCompare: () => [{ objective: "Compare market alternatives using objective criteria (price, quality, reliability).", priority: "HIGH" }],
+      writing: () => [{ objective: "Structure the text (introduction, body, closing) according to its purpose.", priority: "HIGH" }],
+      learning: () => [{ objective: "Adapt the explanation's level to someone with no prior knowledge of the topic.", priority: "HIGH" }],
+      planning: () => [{ objective: "Organize the plan into steps or stages with realistic timelines.", priority: "HIGH" }],
+      analysis: () => [
+        { objective: "Rigorously examine the subject, cross-checking sources and detecting risks or inconsistencies.", priority: "HIGH" },
+        { objective: "Extract actionable conclusions and guidelines backed by the analysis.", priority: "HIGH" }
+      ],
+      legal: () => [{ objective: "Identify the applicable legal or regulatory framework and the risks of non-compliance.", priority: "HIGH" }],
+      salud: () => [{ objective: "Gather relevant health information, indicating when it's advisable to consult a healthcare professional.", priority: "HIGH" }],
+      finanzas: () => [{ objective: "Analyze the financial situation and available options along with their economic implications.", priority: "HIGH" }],
+      industrial: () => [{ objective: "Diagnose the technical/mechanical condition and the critical maintenance points.", priority: "HIGH" }]
+    },
+    domainCapabilities: {
+      hardwareSystem: ["REQUIREMENTS_ENGINEERING", "SYSTEM_ARCHITECTURE", "COMPONENT_ANALYSIS", "FEASIBILITY_ANALYSIS", "COST_ESTIMATION", "RISK_ANALYSIS"],
+      software: ["SOFTWARE_DESIGN", "IMPLEMENTATION", "TESTING"],
+      offline: ["OFFLINE_COMPATIBILITY_ANALYSIS"],
+      purchaseCompare: ["PRODUCT_DISCOVERY", "PRICE_COMPARISON", "VALUE_ANALYSIS"],
+      writing: ["WRITING", "STRUCTURE_DESIGN"],
+      learning: ["TEACHING", "SIMPLIFICATION"],
+      planning: ["PLANNING", "SCHEDULING"],
+      analysis: ["CRITICAL_ANALYSIS", "RISK_ANALYSIS"],
+      legal: ["LEGAL_RESEARCH", "COMPLIANCE_ANALYSIS"],
+      salud: ["HEALTH_INFORMATION", "PROFESSIONAL_REFERRAL_AWARENESS"],
+      finanzas: ["FINANCIAL_ANALYSIS", "COST_ESTIMATION"],
+      industrial: ["TECHNICAL_DIAGNOSIS", "MAINTENANCE_PLANNING"]
+    },
+    ingredients: {
+      formato: /\b(list|table|a report|a document|email|script|summary|outline|step by step|code|image|power ?point|excel|pdf|bullet points|sections)\b/,
+      tono: /\b(formal|informal|professional|simple|technical|casual|creative|serious|funny|for kids|for beginners|friendly)\b/,
+      audiencia: /\bfor (my|me|a|an|the|kids|children|clients|team|boss|students|company|beginners)\b|\b(aimed at|targeted at|audience:)/,
+      longitud: /\b(\d+\s*(words|pages|lines|minutes)|brief|short|long|detailed|summarized|concise)\b/,
+      ejemplos: /\b(like (the|a|an)|similar to|in the style of|for example|for instance|example)\b/,
+      restricciones: /\b(offline|no internet|no connection|budget|free of charge|deadline|by next|maximum|minimum|without using)\b/,
+      criterios: /\b(so that it (is|has|includes|achieves|allows)|the goal is|so that|in order to|with the aim of)\b/
+    },
+    expertSignal: /\b(i'?m an? (programmer|engineer|doctor|lawyer|accountant|electrician|plumber|professional in the field))\b|technical level|advanced level|for an expert|in technical depth|i already (have|know) (prior )?(knowledge|experience)/,
+    assumedText: {
+      formato: () => "organized in clear steps or bullet points, easy to follow",
+      tono: isExpert => isExpert ? "technical and precise; no need to explain basic concepts" : "clear, friendly, and free of unnecessary jargon; if a technical term is used, briefly explain it",
+      audiencia: isExpert => isExpert ? "someone with prior knowledge of the topic" : "someone with no prior knowledge of the topic",
+      longitud: () => "as much detail as needed to be actionable, without unnecessary padding",
+      criterios: () => "actionable (concrete steps, not just theory), briefly explaining the reasoning behind each recommendation"
+    },
+    ambiguityText: {
+      restrictions: "Is there a budget, deadline, or specific constraint that must be respected?",
+      examples: "Do you have an example or reference you'd like the result to resemble? (optional, helps refine the style)"
+    },
+    desiredOutcome: "A useful, validated, well-structured result that fully satisfies the real goal, applying the declared assumptions and resolving the questions that are genuinely still open.",
+    userConstraintsOffline: "Offline functionality required",
+    deliverables: {
+      technical: "Technical solution / Design",
+      writing: "Written text",
+      planning: "Plan / Itinerary",
+      learning: "Clear explanation / Educational guide",
+      default: "Report / Structured recommendation"
+    }
+  }
+};
+
+const DOMAIN_KEYS = ["hardwareSystem", "software", "purchaseCompare", "analysis", "writing", "learning", "planning", "legal", "salud", "finanzas", "industrial"];
+
+// Heurística de detección de idioma: cuenta palabras funcionales frecuentes
+// de cada paquete; en empate o texto vacío, gana español (idioma nativo de
+// la herramienta). No es NLU — es la misma clase de heurística por palabras
+// clave que el resto del motor, aplicada al propio idioma de la petición.
+function detectLanguage(text) {
+  const l = (text || "").toLowerCase();
+  if (!l.trim()) return "es";
+  const esMatches = l.match(LANG_PACKS.es.detectWords);
+  const enMatches = l.match(LANG_PACKS.en.detectWords);
+  let esScore = esMatches ? esMatches.length : 0;
+  const enScore = enMatches ? enMatches.length : 0;
+  if (LANG_PACKS.es.accentHint.test(l)) esScore += 2;
+  return enScore > esScore ? "en" : "es";
+}
+
+// Motor genérico: implementa el mismo algoritmo para cualquier paquete de
+// idioma (dominios aditivos, asunciones vs. preguntas realmente pendientes,
+// prioridad por urgencia...). Añadir un idioma nuevo = añadir un pack, no
+// tocar esta función.
+function buildUnderstandingFromPack(rawGoal, pack) {
   const t = (rawGoal || "").trim();
   const l = t.toLowerCase();
 
-  // --- Orientación por dominio (aditiva, no excluyente) ---
-  const hasHardwareSystem = /\b(depósito|agua|sistema|automático|control|sensor|actuador)\b/.test(l);
-  const hasSoftware = /\b(html|programa|aplicación|gestiona|javascript|código|software)\b/.test(l);
-  // Fix v404: "compar"/"analiza"/"revisa" sueltas (sin \w*) no casaban con
-  // conjugaciones reales ("comparar", "analices", "revises"), así que la
-  // petición nunca activaba su propio dominio. "mejor" y "organiz\w*" se
-  // quitaron por la misma colisión que "local" arriba: "la mejor calidad
-  // posible" y "organizado en pasos" son lenguaje de instrucción de
-  // formato/calidad, no señales de comprar o planificar un viaje.
-  const hasPurchaseCompare = /\b(compar\w*|diferencia|precio|coste|barat\w*|comprar\w*|producto)\b/.test(l);
-  const hasAnalysis = /\b(analiz\w*|estudi\w*|revis\w*|audit\w*|informe)\b/.test(l);
-  const hasWriting = /\b(escrib\w*|redact\w*|carta|email|correo|artículo|guion|historia|cuento)\b/.test(l);
-  const hasLearning = /\b(explic\w*|enseñ\w*|aprend\w*|cómo funciona|qué es|entender)\b/.test(l);
-  const hasPlanning = /\b(planes?|planific\w*|viaje|evento|itinerario|calendario)\b/.test(l);
-  // Fix: "local" suelta se quitó — colisionaba con "tienda local", "médico
-  // local", etc. (mismo tipo de bug que "Bra" en "palabra" en v400).
-  const hasOffline = /\b(offline|sin internet|sin conexión|sin wifi)\b/.test(l);
+  const flags = {};
+  for (const key of Object.keys(pack.domains)) flags[key] = pack.domains[key].test(l);
 
-  let inferredGoal = "Resolver la petición del usuario proporcionando una solución integral y razonada.";
-  if (hasHardwareSystem && hasSoftware) inferredGoal = "Diseñar un sistema físico-digital completo, cubriendo tanto el hardware/control como el software que lo gestiona.";
-  else if (hasHardwareSystem) inferredGoal = "Diseñar y estructurar una solución técnica o sistema físico a medida.";
-  else if (hasSoftware) inferredGoal = "Diseñar e implementar una solución de software según lo solicitado.";
-  else if (hasPurchaseCompare) inferredGoal = "Investigar alternativas, contrastarlas y recomendar la opción óptima mediante criterios objetivos.";
-  else if (hasAnalysis) inferredGoal = "Examinar rigurosamente la materia aportada para extraer conclusiones, riesgos y directrices.";
-  else if (hasWriting) inferredGoal = "Redactar un texto claro y bien estructurado que cumpla el propósito comunicativo indicado.";
-  else if (hasLearning) inferredGoal = "Explicar el tema de forma clara y accesible, adaptada al nivel de quien pregunta.";
-  else if (hasPlanning) inferredGoal = "Organizar un plan detallado y realista que cumpla el objetivo indicado.";
+  let inferredGoal = pack.inferredGoal.default;
+  if (flags.hardwareSystem && flags.software) {
+    inferredGoal = pack.inferredGoal.hardwareSystem_software;
+  } else {
+    for (const k of DOMAIN_KEYS) {
+      if (flags[k] && pack.inferredGoal[k]) { inferredGoal = pack.inferredGoal[k]; break; }
+    }
+  }
 
-  // Subgoals: bloques aditivos, no if/else-if/else — una petición multi-dominio
-  // acumula los subobjetivos de cada dominio que toque, no solo del primero.
-  const subGoals = [
-    { id: "SG-01", objective: "Comprender a fondo el contexto y las condiciones de la petición.", priority: "HIGH" },
-    { id: "SG-02", objective: "Investigar y recopilar la información, componentes o alternativas necesarias.", priority: "HIGH" }
-  ];
+  const subGoals = pack.subGoalsBase.map((objective, i) => ({ id: `SG-0${i + 1}`, objective, priority: "HIGH" }));
   let n = 3;
-  if (hasHardwareSystem) {
-    subGoals.push({ id: `SG-0${n++}`, objective: "Identificar sensores, actuadores y componentes de hardware necesarios.", priority: "HIGH" });
-    subGoals.push({ id: `SG-0${n++}`, objective: "Diseñar la arquitectura lógica y física del sistema.", priority: "HIGH" });
-    subGoals.push({ id: `SG-0${n++}`, objective: "Estimar costes, viabilidad y analizar riesgos de fallo.", priority: "MEDIUM" });
+  let anyDomainMatched = false;
+  for (const k of DOMAIN_KEYS) {
+    if (flags[k] && pack.domainSubGoals[k]) {
+      anyDomainMatched = true;
+      for (const sg of pack.domainSubGoals[k](flags.urgency)) {
+        subGoals.push({ id: `SG-0${n++}`, objective: sg.objective, priority: sg.priority });
+      }
+    }
   }
-  if (hasSoftware) {
-    subGoals.push({ id: `SG-0${n++}`, objective: "Establecer la ingeniería de requisitos y diseño de software.", priority: "HIGH" });
-    subGoals.push({ id: `SG-0${n++}`, objective: "Desarrollar la implementación técnica asegurando compatibilidad con el entorno indicado.", priority: "HIGH" });
+  if (!anyDomainMatched) {
+    subGoals.push({ id: `SG-0${n++}`, objective: pack.subGoalsFallback, priority: "HIGH" });
   }
-  if (hasPurchaseCompare) {
-    subGoals.push({ id: `SG-0${n++}`, objective: "Comparar alternativas del mercado mediante criterios objetivos (precio, calidad, fiabilidad).", priority: "HIGH" });
-  }
-  if (hasWriting) {
-    subGoals.push({ id: `SG-0${n++}`, objective: "Estructurar el texto (introducción, desarrollo, cierre) según su propósito.", priority: "HIGH" });
-  }
-  if (hasLearning) {
-    subGoals.push({ id: `SG-0${n++}`, objective: "Adaptar el nivel de la explicación a alguien sin conocimientos previos del tema.", priority: "HIGH" });
-  }
-  if (hasPlanning) {
-    subGoals.push({ id: `SG-0${n++}`, objective: "Ordenar el plan en pasos o etapas con tiempos realistas.", priority: "HIGH" });
-  }
-  if (!hasHardwareSystem && !hasSoftware && !hasPurchaseCompare && !hasWriting && !hasLearning && !hasPlanning && !hasAnalysis) {
-    subGoals.push({ id: `SG-0${n++}`, objective: "Analizar alternativas y contrastarlas mediante criterios objetivos.", priority: "HIGH" });
-  }
-  subGoals.push({ id: "SG-FINAL", objective: "Sintetizar la respuesta final con conclusiones claras y recomendaciones razonadas.", priority: "HIGH" });
+  subGoals.push({ id: "SG-FINAL", objective: pack.subGoalsFinal, priority: "HIGH" });
 
   const requiredCapabilities = ["RESEARCH", "INFORMATION_SYNTHESIS", "DECISION_ANALYSIS"];
-  if (hasHardwareSystem) requiredCapabilities.push("REQUIREMENTS_ENGINEERING", "SYSTEM_ARCHITECTURE", "COMPONENT_ANALYSIS", "FEASIBILITY_ANALYSIS", "COST_ESTIMATION", "RISK_ANALYSIS");
-  if (hasSoftware) requiredCapabilities.push("SOFTWARE_DESIGN", "IMPLEMENTATION", "TESTING");
-  if (hasOffline) requiredCapabilities.push("OFFLINE_COMPATIBILITY_ANALYSIS");
-  if (hasPurchaseCompare) requiredCapabilities.push("PRODUCT_DISCOVERY", "PRICE_COMPARISON", "VALUE_ANALYSIS");
-  if (hasWriting) requiredCapabilities.push("WRITING", "STRUCTURE_DESIGN");
-  if (hasLearning) requiredCapabilities.push("TEACHING", "SIMPLIFICATION");
-  if (hasPlanning) requiredCapabilities.push("PLANNING", "SCHEDULING");
+  for (const k of Object.keys(pack.domainCapabilities)) {
+    if (flags[k]) requiredCapabilities.push(...pack.domainCapabilities[k]);
+  }
 
-  // --- Ingredientes universales de un prompt eficaz (independientes del dominio) ---
-  // Fix v403 (tras comparar con wizard.html V2): convertir CADA ingrediente
-  // ausente en una pregunta bloqueante devolvía el trabajo al usuario, justo
-  // lo que la herramienta dice evitar (README: "aunque no sepas nada de IA").
-  // Ahora, salvo que el dato sea genuinamente imposible de asumir con
-  // seguridad (p. ej. una cifra de presupuesto concreta), se asigna un valor
-  // por defecto razonable en "assumedDefaults" -declarado y editable, nunca
-  // oculto- en vez de bloquear con una pregunta en "ambiguities".
-  const hasFormato = /\b(lista|tabla|informe|documento|email|correo|guion|resumen|esquema|paso a paso|código|imagen|power ?point|excel|pdf|puntos|apartados)\b/.test(l);
-  const hasTono = /\b(formal|informal|profesional|sencill[oa]|técnic[oa]|coloquial|creativo|serio|divertido|para niños|para principiantes|cercan[oa])\b/.test(l);
-  const hasAudiencia = /\bpara (mi|mis|un|una|los|las|niños|clientes|equipo|jefe|estudiantes|empresa|principiantes)\b/.test(l);
-  const hasLongitud = /\b(\d+\s*(palabras|páginas|líneas|minutos)|breve|cort[oa]|extens[oa]|detallad[oa]|resumid[oa])\b/.test(l);
-  const hasEjemplos = /\b(como|similar a|al estilo de|parecido a|por ejemplo|ejemplo)\b/.test(l);
-  const hasRestricciones = /\b(offline|sin internet|sin conexión|presupuesto|gratis|gratuito|plazo|antes del|máximo|mínimo|sin usar)\b/.test(l);
-  const hasCriterios = /\b(que (sea|tenga|incluya|logre|permita)|el objetivo es|para que|de forma que|con el fin de)\b/.test(l);
-  // Igual que en el wizard: sin señal explícita de experiencia previa, se
-  // asume que quien pregunta NO sabe del tema (el público objetivo del
-  // proyecto), y solo se sube el registro a técnico si el texto lo indica.
-  const isExpert = /\b(soy (programador\w*|ingenier\w*|médic\w*|abogad\w*|contable|electricista|fontaner\w*|profesional del sector))\b|nivel técnico|a nivel avanzado|para un experto|en profundidad técnica|ya tengo conocimientos (previos|del tema|de esto)/.test(l);
+  const ingFlags = {};
+  for (const key of Object.keys(pack.ingredients)) ingFlags[key] = pack.ingredients[key].test(l);
+  const isExpert = pack.expertSignal.test(l);
 
   const assumedDefaults = {};
-  if (!hasFormato) assumedDefaults.formato = "organizado en pasos o puntos claros, fácil de seguir";
-  if (!hasTono) assumedDefaults.tono = isExpert ? "técnico y preciso; no hace falta explicar los conceptos básicos" : "claro, cercano y sin tecnicismos innecesarios; si se usa algún término técnico, se explica brevemente";
-  if (!hasAudiencia) assumedDefaults.audiencia = isExpert ? "alguien con conocimientos previos del tema" : "alguien sin conocimientos previos del tema";
-  if (!hasLongitud) assumedDefaults.longitud = "el detalle necesario para ser accionable, sin relleno superfluo";
-  if (!hasCriterios) assumedDefaults.criterios = "accionable (pasos concretos, no solo teoría), explicando brevemente el porqué de cada recomendación";
+  for (const key of ["formato", "tono", "audiencia", "longitud", "criterios"]) {
+    if (!ingFlags[key]) assumedDefaults[key] = pack.assumedText[key](isExpert);
+  }
 
-  // Preguntas realmente pendientes: solo lo que NO se puede asumir sin
-  // riesgo de estar mal. Un presupuesto o plazo concreto no es algo que deba
-  // "inventarse" como valor por defecto; un ejemplo de estilo en un encargo
-  // de escritura tampoco (afecta directamente al resultado).
   const ambiguities = [];
-  if (!hasRestricciones && (hasPurchaseCompare || hasHardwareSystem)) ambiguities.push("¿Hay un presupuesto, plazo o restricción concreta que deba respetarse?");
-  if (!hasEjemplos && hasWriting) ambiguities.push("¿Tienes algún ejemplo o referencia a la que te gustaría que se pareciera el resultado? (opcional, ayuda a afinar el estilo)");
+  if (!ingFlags.restricciones && (flags.purchaseCompare || flags.hardwareSystem)) ambiguities.push(pack.ambiguityText.restrictions);
+  if (!ingFlags.ejemplos && flags.writing) ambiguities.push(pack.ambiguityText.examples);
+
+  const deliverable = (flags.hardwareSystem || flags.software) ? pack.deliverables.technical
+    : flags.writing ? pack.deliverables.writing
+    : flags.planning ? pack.deliverables.planning
+    : flags.learning ? pack.deliverables.learning
+    : pack.deliverables.default;
 
   return {
     source: "local",
+    lang: pack.code,
     explicitGoal: t,
     inferredGoal,
-    desiredOutcome: "Un resultado útil, validado y estructurado que satisfaga plenamente el objetivo real, aplicando las asunciones declaradas y resolviendo las preguntas realmente pendientes.",
+    desiredOutcome: pack.desiredOutcome,
     // Fix v401: el motor local NO intenta extraer preferencias/marcas por
     // lista de palabras (era la causa de "Tefal"/"Bra" hardcodeados en v400,
     // con colisiones reales como "palabra" -> "Bra"). Sin IA, no se puede
     // extraer esto de forma fiable, así que se declara vacío honestamente.
     userPreferences: [],
-    userConstraints: hasOffline ? ["Funcionalidad offline requerida"] : [],
-    deliverablesExpected: [hasHardwareSystem || hasSoftware ? "Solución técnica / Diseño" : (hasWriting ? "Texto redactado" : (hasPlanning ? "Plan / Itinerario" : "Informe / Recomendación estructurada"))],
+    userConstraints: flags.offline ? [pack.userConstraintsOffline] : [],
+    deliverablesExpected: [deliverable],
     subGoals,
     requiredCapabilities: [...new Set(requiredCapabilities)],
     assumedDefaults,
-    ambiguities
+    ambiguities,
+    urgency: flags.urgency
   };
+}
+
+// langOverride: "es" | "en" | "auto"/vacío (auto-detecta). Se declara siempre
+// en el contrato (understanding.lang) — igual que "source" (ai/local), nunca
+// se oculta qué idioma se usó para analizar la petición.
+function localHeuristicUnderstanding(rawGoal, langOverride) {
+  const lang = (langOverride && LANG_PACKS[langOverride]) ? langOverride : detectLanguage(rawGoal);
+  return buildUnderstandingFromPack(rawGoal, LANG_PACKS[lang]);
 }
 
 // ==========================================
 // MOTORES DETERMINISTAS (formatean/agregan, no "entienden" — está bien que sean fijos)
 // ==========================================
+// Fix v412: eliminado el campo completionCriteria de este engine — se
+// calculaba pero ningún serializador ni vista de depuración lo leía nunca
+// (código muerto desde al menos v401), y su contenido duplicaba en espíritu
+// lo que DefinitionOfDoneEngine.completionCriteria ya expone en la sección
+// 6 del contrato. Mantener código muerto con contenido redundante confundía
+// más de lo que ayudaba.
 const OutcomeContractEngine = {
   build: (understanding) => ({
     successDefinition: `La tarea se considerará resuelta cuando el usuario obtenga una respuesta exhaustiva, analizada y justificada que aborde directamente el objetivo de: "${understanding.inferredGoal}" sin limitarse a enumerar enlaces o datos superficiales.`,
-    deliverables: understanding.deliverablesExpected,
-    completionCriteria: [
-      "El objetivo real del usuario ha sido abordado analíticamente.",
-      "No se han proporcionado meras listas de enlaces o respuestas superficiales.",
-      "Las recomendaciones o soluciones están respaldadas por criterios lógicos o técnicos.",
-      "Se han considerado restricciones y preferencias explícitas."
-    ]
+    deliverables: understanding.deliverablesExpected
   })
 };
 
@@ -528,6 +782,9 @@ const DefinitionOfDoneEngine = {
     if (capabilityPlan.required.includes("PRICE_COMPARISON")) completionCriteria.push("La comparación debe incluir al menos dos alternativas con criterios explícitos, no una única recomendación sin contraste.");
     if (understanding.ambiguities && understanding.ambiguities.length) completionCriteria.push(`Deben resolverse o declararse explícitamente estas ambigüedades: ${understanding.ambiguities.join('; ')}.`);
     if (understanding.assumedDefaults && Object.keys(understanding.assumedDefaults).length) completionCriteria.push("Deben respetarse las asunciones por defecto declaradas (sección 1.5), salvo que el usuario indique lo contrario.");
+    if (understanding.urgency) completionCriteria.push("La petición señala urgencia/criticidad: prioriza una validación exhaustiva sin omitir pasos por rapidez.");
+    if (capabilityPlan.required.includes("DIFF_ANALYSIS")) completionCriteria.push("Debe compararse explícitamente el artefacto base (v1) contra el modificado (v2), señalando diferencias funcionales y riesgos de regresión — no basta con analizar uno de los dos.");
+    if (capabilityPlan.required.includes("CODE_COMPREHENSION")) completionCriteria.push("Debe partirse del artefacto técnico base proporcionado, sin ignorarlo ni contradecirlo.");
 
     return {
       completionCriteria,
@@ -548,10 +805,13 @@ const DefinitionOfDoneEngine = {
 //
 // Fix v402: el check de "dominio reconocido" se marca como 'info', no
 // 'blocking'. Como el motor local NO puede reconocer todas las materias
-// posibles (cocina, salud, finanzas, legal...), penalizar con WARNING a
-// cualquier petición fuera de las 7 categorías fijas era una falsa alarma
+// posibles (cocina, jardinería, mascotas, deporte...), penalizar con WARNING
+// a cualquier petición fuera de la taxonomía fija era una falsa alarma
 // para el usuario, no un problema real de su petición. Se sustituye por un
 // check honesto (#5) que sí detecta peticiones genuinamente vacías/vagas.
+// (Fix v405: la taxonomía creció a 11 categorías — salud/finanzas/legal ya
+// no son ejemplo de lo no reconocido, pero el principio sigue vigente para
+// lo que quede fuera.)
 const AdversarialValidationEngine = {
   validate: (understanding, goalGraph, capabilityPlan) => {
     const baselineCapCount = 3; // RESEARCH, INFORMATION_SYNTHESIS, DECISION_ANALYSIS son siempre la base
@@ -590,7 +850,12 @@ const AdversarialValidationEngine = {
 };
 
 // --- SERIALIZADOR: cada adapter produce un formato realmente distinto ---
-const escXml = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+// Fix v410: no escapaba comillas, pero se usa para valores de ATRIBUTO XML
+// como primary_goal="${escXml(...)}" — con el motor local nunca se dispara
+// (los inferredGoal fijos no llevan comillas), pero con el motor de IA
+// (aiUnderstanding, ya funcional tras el fix v407 del ID de modelo) un
+// objetivo generado por el LLM que contenga una comilla rompería el XML.
+const escXml = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
 
 const SerializerSystem = {
   serialize: (ir, adapter) => {
@@ -622,11 +887,16 @@ const SerializerSystem = {
     const forbiddenStr = ir.definitionOfDone.forbiddenOutputs.map(f => `> ${f}`).join('\n');
     const validationStr = ir.validation.checks.map(c => `> [${c.passed ? 'PASS' : (c.severity === 'info' ? 'INFO' : 'FAIL')}] ${c.check}`).join('\n');
     const passedCount = ir.validation.checks.filter(c => c.passed).length;
+    // Fix v409: expone los artefactos técnicos (antes se descartaban sin usar).
+    const artifactsBlock = ir.artifacts?.hasArtifacts
+      ? `\n:: TECHNICAL_ARTIFACTS\n${ir.artifacts.base ? `> BASE (v1):\n${ir.artifacts.base}\n` : ''}${ir.artifacts.modified ? `> MODIFIED (v2):\n${ir.artifacts.modified}\n` : ''}`
+      : '';
 
     return `[AKI EXECUTION CONTRACT — V401 GOAL-DRIVEN]
 :: TASK_ID = ${ir.requestId}
 :: STATUS = ${ir.validation.status} (${passedCount}/${ir.validation.checks.length})
 :: ANALYSIS_SOURCE = ${u.source === 'ai' ? 'ai (comprensión semántica real)' : 'local (heurística por reglas — aproximada, revisar antes de confiar del todo)'}
+:: LANGUAGE = ${u.lang || 'es'}
 
 :: EXPLICIT_GOAL
 > ${u.explicitGoal.replace(/\n/g, '\n> ')}
@@ -670,7 +940,7 @@ ${forbiddenStr}
 
 :: VALIDATION
 ${validationStr}
-
+${artifactsBlock}
 :: GENERATION_INSTRUCTIONS
 > Aplica ASSUMED_DEFAULTS salvo que el usuario indique lo contrario.
 > Si hay elementos en PENDING_QUESTIONS, pregúntalos primero antes de dar la solución final.
@@ -692,6 +962,12 @@ ${validationStr}
     const phasesStr = ir.executionPlan.phases.map(p => `• FASE [${p.phase}]: ${p.objectives.join(' | ')}`).join('\n');
     const dodStr = ir.definitionOfDone.completionCriteria.map(c => `✓ ${c}`).join('\n');
     const validationStr = ir.validation.checks.map(c => `[${c.passed ? 'PASS' : (c.severity === 'info' ? 'INFO' : 'FAIL')}] ${c.check}`).join('\n');
+    // Fix v409: expone los artefactos técnicos (antes se descartaban sin usar).
+    const artifactsSection = ir.artifacts?.hasArtifacts ? `
+
+7.5. ARTEFACTOS TÉCNICOS PROPORCIONADOS
+-----------------------------------------
+${ir.artifacts.base ? `ARTEFACTO BASE (v1):\n${ir.artifacts.base}\n` : ''}${ir.artifacts.modified ? `\nARTEFACTO MODIFICADO (v2):\n${ir.artifacts.modified}` : ''}` : '';
 
     return `[CANONICAL EXECUTION CONTRACT — ENTERPRISE V401 AI-CORE GOAL-DRIVEN]
 > ARCHITECTURAL DIRECTIVE: Goal-driven reasoning, Capability Planner & Anti-Shallowness Enforcer.
@@ -699,6 +975,7 @@ ${validationStr}
 0. ANALYSIS SOURCE (TRANSPARENCIA)
 -----------------------------------
 FUENTE DEL ANÁLISIS SEMÁNTICO: ${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}
+IDIOMA DE ANÁLISIS: ${u.lang || 'es'}
 
 1. UNIVERSAL REQUEST UNDERSTANDING
 ----------------------------------
@@ -745,6 +1022,7 @@ FORBIDDEN OUTPUTS: ${ir.definitionOfDone.forbiddenOutputs.join(' | ')}
 ---------------------------------------------------------------------------------
 STATUS: ${ir.validation.status}
 ${validationStr}
+${artifactsSection}
 
 8. FINAL OUTPUT CONTRACT / GENERATION INSTRUCTIONS
 --------------------------------------------------
@@ -771,11 +1049,18 @@ ${validationStr}
     const dodXml = ir.definitionOfDone.completionCriteria.map(c => `    <criterion>${escXml(c)}</criterion>`).join('\n');
     const forbiddenXml = ir.definitionOfDone.forbiddenOutputs.map(f => `      <item>${escXml(f)}</item>`).join('\n');
     const validationXml = ir.validation.checks.map(c => `    <check passed="${c.passed}" severity="${c.severity}">${escXml(c.check)}</check>`).join('\n');
+    // Fix v409: expone los artefactos técnicos (antes se descartaban sin usar).
+    // escXml en vez de CDATA: el código pegado podría contener literalmente
+    // "]]>", que rompería una sección CDATA; escapar es siempre seguro.
+    const artifactsXml = ir.artifacts?.hasArtifacts
+      ? `\n  <technical_artifacts>\n${ir.artifacts.base ? `    <base_v1>${escXml(ir.artifacts.base)}</base_v1>\n` : ''}${ir.artifacts.modified ? `    <modified_v2>${escXml(ir.artifacts.modified)}</modified_v2>\n` : ''}  </technical_artifacts>\n`
+      : '';
 
     return `<canonical_execution_contract task_id="${escXml(ir.requestId)}" status="${ir.validation.status}">
   <architectural_directive>Goal-driven reasoning, Capability Planner &amp; Anti-Shallowness Enforcer.</architectural_directive>
 
   <analysis_source method="${u.source}">${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}</analysis_source>
+  <analysis_language>${escXml(u.lang || 'es')}</analysis_language>
 
   <request_understanding>
     <explicit_goal>${escXml(u.explicitGoal)}</explicit_goal>
@@ -820,7 +1105,7 @@ ${forbiddenXml}
   <validation status="${ir.validation.status}">
 ${validationXml}
   </validation>
-
+${artifactsXml}
   <generation_instructions>
     <instruction>Aplica las asunciones por defecto salvo que el usuario indique lo contrario.</instruction>
     <instruction>Si hay elementos en pending_questions, pregúntalos primero antes de dar la solución final.</instruction>
@@ -849,12 +1134,27 @@ ${validationXml}
     const forbiddenMd = ir.definitionOfDone.forbiddenOutputs.map(f => `- 🚫 ${f}`).join('\n');
     const validationMd = ir.validation.checks.map(c => `- ${c.passed ? '✅' : (c.severity === 'info' ? 'ℹ️' : '❌')} ${c.check}`).join('\n');
     const statusIcon = ir.validation.status === 'VALIDATED' ? '✅' : '⚠️';
+    // Fix v409: expone los artefactos técnicos (antes se descartaban sin usar).
+    // Fix v410: valla de código de longitud fija (```) se rompía si el propio
+    // artefacto ya contenía una secuencia de 3+ backticks (código pegado que
+    // documenta o compara Markdown/snippets con ejemplos de código embebidos).
+    // Convención estándar de Markdown: usar una valla más larga que la mayor
+    // racha de backticks presente en el contenido.
+    const mdFenceFor = text => {
+      const runs = text.match(/`{3,}/g);
+      const maxLen = runs ? Math.max(...runs.map(r => r.length)) : 3;
+      return '`'.repeat(maxLen + 1);
+    };
+    const artifactsMd = ir.artifacts?.hasArtifacts ? `
+## 7.5 Artefactos técnicos proporcionados
+${ir.artifacts.base ? (() => { const f = mdFenceFor(ir.artifacts.base); return `**Artefacto base (v1):**\n${f}\n${ir.artifacts.base}\n${f}\n`; })() : ''}${ir.artifacts.modified ? (() => { const f = mdFenceFor(ir.artifacts.modified); return `**Artefacto modificado (v2):**\n${f}\n${ir.artifacts.modified}\n${f}\n`; })() : ''}` : '';
 
     return `# Canonical Execution Contract — Enterprise V401 (AI-Core, Goal-Driven)
 > Goal-driven reasoning, Capability Planner & Anti-Shallowness Enforcer.
 
 ## 0. Fuente del análisis
 **Fuente del análisis semántico:** ${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}
+**Idioma de análisis:** ${u.lang || 'es'}
 
 ## 1. Comprensión de la petición
 **Objetivo explícito:**
@@ -896,7 +1196,7 @@ ${forbiddenMd}
 **Estado:** ${statusIcon} ${ir.validation.status}
 
 ${validationMd}
-
+${artifactsMd}
 ## 8. Instrucciones finales de generación
 1. Aplica las asunciones por defecto salvo que el usuario indique lo contrario.
 2. Si hay preguntas en "Preguntas realmente pendientes", pregúntalas primero antes de dar la solución final.
@@ -917,8 +1217,14 @@ ${validationMd}
     const phasesStr = ir.executionPlan.phases.map(p => p.phase).join('>');
     const dodStr = ir.definitionOfDone.completionCriteria.join('; ');
     const passedCount = ir.validation.checks.filter(c => c.passed).length;
+    // Fix v409: declara presencia de artefactos (antes se descartaban sin
+    // usar). Sin volcar el código completo aquí — este adapter es "Compact",
+    // el contenido íntegro sí aparece en GENERIC/CLAUDE/CHATGPT/AKI.
+    const artifactsStr = ir.artifacts?.hasArtifacts
+      ? `ARTIFACTS: base=${ir.artifacts.base ? 'provided' : 'none'}; modified=${ir.artifacts.modified ? 'provided' : 'none'} (ver adapter GENERIC/CLAUDE/CHATGPT/AKI para el contenido completo)\n`
+      : '';
 
-    return `TASK[${ir.requestId}] SRC=${u.source} STATUS=${ir.validation.status} (${passedCount}/${ir.validation.checks.length})
+    return `TASK[${ir.requestId}] SRC=${u.source} LANG=${u.lang || 'es'} STATUS=${ir.validation.status} (${passedCount}/${ir.validation.checks.length})
 GOAL.explicit="${u.explicitGoal.replace(/\n/g, ' ')}"
 GOAL.inferred="${u.inferredGoal}"
 OUTCOME="${u.desiredOutcome}"
@@ -930,12 +1236,12 @@ PHASES: ${phasesStr}
 DOD: ${dodStr}
 FORBIDDEN: ${ir.definitionOfDone.forbiddenOutputs.join(' | ')}
 DELIVERABLES: ${ir.outcomeContract.deliverables.join(', ')}
-INSTRUCTIONS: Aplica DEFAULTS salvo indicación contraria; resuelve PENDING antes de la solución final; ejecuta PHASES por completo; nunca superficial; entrega razonada y estructurada.`;
+${artifactsStr}INSTRUCTIONS: Aplica DEFAULTS salvo indicación contraria; resuelve PENDING antes de la solución final; ejecuta PHASES por completo; nunca superficial; entrega razonada y estructurada.`;
   }
 };
 
 // --- MASTER PIPELINE V401 ---
-const compilarV401 = async (input, artifactText, modifiedText, adapter, apiKey) => {
+const compilarV401 = async (input, artifactText, modifiedText, adapter, apiKey, langOverride) => {
   traceHistory = [];
   logTrace("SYS", "Iniciando Pipeline V401 (AI-Core Goal-Driven)...");
 
@@ -953,16 +1259,34 @@ const compilarV401 = async (input, artifactText, modifiedText, adapter, apiKey) 
         understanding = await aiUnderstanding(input, apiKey);
         logTrace("INTELLIGENCE", `Comprensión semántica por IA. Goal: [${understanding.inferredGoal}]`);
       } catch (e) {
-        understanding = localHeuristicUnderstanding(input);
+        understanding = localHeuristicUnderstanding(input, langOverride);
         logTrace("INTELLIGENCE", `IA no disponible (${e.message}). Usando análisis local.`, "warn");
       }
     } else {
-      understanding = localHeuristicUnderstanding(input);
-      logTrace("INTELLIGENCE", `Análisis local (sin API key, sin conexión a internet). Goal: [${understanding.inferredGoal}]`);
+      understanding = localHeuristicUnderstanding(input, langOverride);
+      logTrace("INTELLIGENCE", `Análisis local (idioma: ${understanding.lang}). Goal: [${understanding.inferredGoal}]`);
     }
 
     const goalGraph = { primaryGoal: understanding.inferredGoal, subGoals: understanding.subGoals };
     const capabilityPlan = { required: understanding.requiredCapabilities, optional: ["LOCAL_SEARCH", "QUALITY_ASSURANCE"], excluded: [] };
+
+    // Fix v409: artifactText/modifiedText (los campos "Artefacto Técnico Base"
+    // y "Artefacto Modificado" de la UI) llegaban como parámetros a esta
+    // función pero nunca se usaban — el usuario podía pegar código base y
+    // modificado esperando una comparación, y el contrato los ignoraba por
+    // completo, en silencio. Ahora se incorporan: si hay ambos, se añade un
+    // subobjetivo/capacidad de comparación de diff; si solo hay base, de
+    // comprensión de código base; el contenido real se incluye en el
+    // contrato serializado (sección 7.5 / equivalente por adapter).
+    const hasBaseArtifact = !!(artifactText && artifactText.trim());
+    const hasModifiedArtifact = !!(modifiedText && modifiedText.trim());
+    if (hasBaseArtifact && hasModifiedArtifact) {
+      goalGraph.subGoals.splice(goalGraph.subGoals.length - 1, 0, { id: "SG-ART", objective: "Comparar el artefacto técnico base (v1) contra el modificado (v2) e identificar diferencias funcionales, riesgos de regresión y mejoras.", priority: "HIGH" });
+      capabilityPlan.required.push("DIFF_ANALYSIS", "REGRESSION_RISK_ASSESSMENT");
+    } else if (hasBaseArtifact) {
+      goalGraph.subGoals.splice(goalGraph.subGoals.length - 1, 0, { id: "SG-ART", objective: "Partir del artefacto técnico base proporcionado, manteniendo coherencia y compatibilidad con él.", priority: "HIGH" });
+      capabilityPlan.required.push("CODE_COMPREHENSION");
+    }
     logTrace("INTELLIGENCE", `Goal Decomposition: ${goalGraph.subGoals.length} subobjetivos. Capability Planner: ${capabilityPlan.required.length} capacidades.`);
 
     const outcomeContract = OutcomeContractEngine.build(understanding);
@@ -971,7 +1295,7 @@ const compilarV401 = async (input, artifactText, modifiedText, adapter, apiKey) 
     const validation = AdversarialValidationEngine.validate(understanding, goalGraph, capabilityPlan);
     logTrace("CONTROL", `Adversarial Validation: [${validation.status}] (${validation.checks.filter(c=>c.passed).length}/${validation.checks.length} checks superados)`);
 
-    const ir = { requestId, understanding, outcomeContract, goalGraph, capabilityPlan, executionPlan, definitionOfDone, validation };
+    const ir = { requestId, understanding, outcomeContract, goalGraph, capabilityPlan, executionPlan, definitionOfDone, validation, artifacts: { base: artifactText || "", modified: modifiedText || "", hasArtifacts: hasBaseArtifact || hasModifiedArtifact } };
     const executablePrompt = SerializerSystem.serialize(ir, adapter);
 
     const result = { request: input, timestamp: Date.now(), validation, readinessIndex: { status: validation.status, score: validation.failures.length === 0 ? 98 : 80 }, ir, executablePrompt };
@@ -989,18 +1313,24 @@ const compilarV401 = async (input, artifactText, modifiedText, adapter, apiKey) 
 const ejecutarCompilacionV401 = async () => {
   const promptEl = $('executablePrompt');
   const btn = $('btnCompile');
-  if (promptEl) promptEl.textContent = "Compilando contrato V401 (analizando con IA si está disponible)...";
-  if (btn) { btn.disabled = true; btn.textContent = "⏳ Compilando..."; }
+  if (promptEl) promptEl.textContent = "Generando el prompt (analizando con IA si está disponible)...";
+  if (btn) { btn.disabled = true; btn.textContent = "⏳ Generando Prompt..."; }
 
+  const langSel = $('requestLanguage')?.value || "auto";
   const res = await compilarV401(
     $('userRequest')?.value || "",
     $('currentArtifact')?.value || "",
     $('modifiedArtifact')?.value || "",
     $('modelAdapter')?.value || "GENERIC",
-    $('apiKey')?.value?.trim() || ""
+    $('apiKey')?.value?.trim() || "",
+    langSel === "auto" ? undefined : langSel
   );
 
-  if (btn) { btn.disabled = false; btn.textContent = "Compilar a Contrato Canónico V401"; }
+  if (btn) { btn.disabled = false; btn.textContent = "Crear Prompt"; }
+  // Fix v410: paridad con wizard.html — la key no debe persistir en el DOM
+  // tras usarse (defensa en profundidad; nunca se guarda, solo vivía en este
+  // campo mientras se compilaba).
+  if ($('apiKey')) $('apiKey').value = "";
 
   if (res.error) {
     if (res.error === "EMPTY") alert("Por favor, introduce una petición.");
@@ -1026,7 +1356,14 @@ const ejecutarTestsV401 = async () => {
     { id: "T-01", name: "Guardia de Input Vacío", in: "", assert: r => r.error === "EMPTY" },
     { id: "T-02", name: "Goal Decomposition (Depósito Agua)", in: "Quiero crear un sistema automático para controlar el nivel de agua de un depósito.", assert: r => !r.error && r.ir.goalGraph.subGoals.length >= 4 },
     { id: "T-03", name: "Capability Planner (Software Offline)", in: "Quiero crear una aplicación HTML que gestione tareas y funcione completamente offline.", assert: r => !r.error && r.ir.capabilityPlan.required.includes("OFFLINE_COMPATIBILITY_ANALYSIS") },
-    { id: "T-04", name: "Anti-Shallowness Enforcer", in: "Compara ollas de dos marcas distintas y dime cuál comprar", assert: r => !r.error && r.ir.definitionOfDone.completionCriteria.length > 0 },
+    // Fix v413: DefinitionOfDoneEngine SIEMPRE devuelve al menos 3 criterios
+    // base incondicionalmente, así que "completionCriteria.length > 0" era
+    // cierto para CUALQUIER compilación exitosa — el test no podía fallar
+    // pasara lo que pasara, el mismo antipatrón "tautológico" que el propio
+    // código critica en AdversarialValidationEngine (fix v401). Ahora
+    // verifica de verdad su propósito: que se añaden criterios específicos
+    // de dominio, no solo los 3 base.
+    { id: "T-04", name: "Anti-Shallowness Enforcer: se añaden criterios específicos de dominio, no solo los 3 base (antes tautológico: cualquier compilación exitosa pasaba)", in: "Compara ollas de dos marcas distintas y dime cuál comprar", assert: r => !r.error && r.ir.definitionOfDone.completionCriteria.some(c => c.includes("al menos dos alternativas")) },
     { id: "T-05", name: "Multi-dominio: ningún subgoal se pierde (fix exclusión mutua)", in: "Quiero crear un sistema automático de control con una app HTML que lo gestione", assert: r => {
         if (r.error) return false;
         const objectives = r.ir.goalGraph.subGoals.map(sg => sg.objective.toLowerCase()).join(' ');
@@ -1044,7 +1381,83 @@ const ejecutarTestsV401 = async () => {
     { id: "T-11", name: "Sin falso positivo de 'local' en 'tienda local' (fix colisión de palabra suelta)", in: "Quiero encontrar una tienda local que venda muebles baratos", assert: r => !r.error && !r.ir.understanding.userConstraints.includes("Funcionalidad offline requerida") },
     { id: "T-12", name: "Petición fuera del taxonomy fijo (ej. cocina) no da WARNING solo por falta de dominio reconocido", in: "Quiero hacer una tarta de manzana casera para el cumpleaños de mi madre", assert: r => !r.error && r.ir.validation.status === "VALIDATED" },
     { id: "T-13", name: "Comparativa de compra sin presupuesto sí genera una pregunta realmente pendiente (fix v403: lo que no se puede asumir con seguridad se sigue preguntando)", in: "Compara ollas de dos marcas distintas y dime cuál comprar", assert: r => !r.error && r.ir.understanding.ambiguities.some(a => a.toLowerCase().includes("presupuesto")) },
-    { id: "T-14", name: "Señal de experiencia previa ajusta la asunción de tono a técnico", in: "Soy ingeniero y quiero optimizar el sistema automático del depósito", assert: r => !r.error && r.ir.understanding.assumedDefaults.tono && r.ir.understanding.assumedDefaults.tono.includes("técnico") }
+    { id: "T-14", name: "Señal de experiencia previa ajusta la asunción de tono a técnico", in: "Soy ingeniero y quiero optimizar el sistema automático del depósito", assert: r => !r.error && r.ir.understanding.assumedDefaults.tono && r.ir.understanding.assumedDefaults.tono.includes("técnico") },
+    { id: "T-15", name: "Taxonomía ampliada reconoce dominio legal (fix v405, auditoría externa + README pendiente)", in: "Quiero saber si puedo rescindir mi contrato de alquiler antes de tiempo", assert: r => !r.error && r.ir.capabilityPlan.required.includes("LEGAL_RESEARCH") },
+    { id: "T-16", name: "Señal de urgencia escala a HIGH la prioridad de viabilidad/riesgos (fix v405)", in: "Es urgente, necesito resolver el fallo del sistema automático del depósito antes de mañana", assert: r => {
+        if (r.error) return false;
+        const sg = r.ir.goalGraph.subGoals.find(s => s.objective.includes("Estimar costes"));
+        return !!sg && sg.priority === "HIGH";
+      } },
+    { id: "T-17", name: "Sin falso positivo de 'motor' suelto en 'motor de búsqueda' (fix v405, misma cautela que 'local')", in: "Quiero mejorar el motor de búsqueda interno de mi aplicación web", assert: r => !r.error && !r.ir.capabilityPlan.required.includes("TECHNICAL_DIAGNOSIS") },
+    { id: "T-18", name: "hasAnalysis ya genera sus propios subobjetivos y capacidades (fix v406: bug desde v401, dejaba la fase ANALYZE_OR_DESIGN vacía)", in: "Revisa este texto y dime si tiene errores de lógica", assert: r => !r.error && r.ir.goalGraph.subGoals.length > 3 && r.ir.capabilityPlan.required.includes("CRITICAL_ANALYSIS") },
+    { id: "T-19", name: "Fase ANALYZE_OR_DESIGN ya no sale vacía en una petición de puro análisis (fix v406, regresión del caso real reportado)", in: "quiero que analices el documento y revises si el planteamiento es correcto", assert: r => {
+        if (r.error) return false;
+        const fase = r.ir.executionPlan.phases.find(p => p.phase === "ANALYZE_OR_DESIGN");
+        return !!fase && fase.objectives.length > 0;
+      } },
+    { id: "T-20", name: "'el documento' como objeto de análisis ya no se confunde con un formato de salida pedido (fix v406, caso real reportado)", in: "quiero que analices el documento y revises si el planteamiento es correcto", assert: r => !r.error && ('formato' in r.ir.understanding.assumedDefaults) },
+    { id: "T-21", name: "'un informe' sigue reconociéndose como formato explícitamente pedido (no regresión del fix v406)", in: "Hazme un informe sobre el rendimiento del equipo este trimestre", assert: r => !r.error && !('formato' in r.ir.understanding.assumedDefaults) },
+    { id: "T-22", name: "Petición de análisis obtiene el criterio de DoD de riesgos (fix v408: RISK_ASSESSMENT no coincidía con RISK_ANALYSIS)", in: "Revisa este texto y dime si tiene errores de lógica", assert: r => !r.error && r.ir.definitionOfDone.completionCriteria.some(c => c.includes("riesgos o modos de fallo")) },
+    { id: "T-23", name: "'como' suelta (verbo comer, no un ejemplo) ya no se confunde con un ejemplo dado (fix v408, falso positivo de alto impacto)", in: "Escríbeme un email sobre lo que como cada día en el desayuno", assert: r => !r.error && r.ir.understanding.ambiguities.some(a => a.toLowerCase().includes("ejemplo")) },
+    { id: "T-24", name: "'como el que...' sigue reconociéndose como ejemplo real (no regresión del fix v408)", in: "Escríbeme una carta como la que le mandé el mes pasado a mi jefe", assert: r => {
+        if (r.error) return false;
+        return !r.ir.understanding.ambiguities.some(a => a.toLowerCase().includes("ejemplo"));
+      } },
+    { id: "T-25", name: "'dirigido a' se reconoce como audiencia ya especificada (fix v408, README pendiente)", in: "Escribe un resumen dirigido a nuevos empleados sobre el reglamento interno", assert: r => !r.error && !('audiencia' in r.ir.understanding.assumedDefaults) },
+    { id: "T-26", name: "Petición de aprendizaje pide 'Explicación clara / Guía didáctica', no un informe genérico (fix v408)", in: "Explícame cómo funciona un préstamo hipotecario", assert: r => !r.error && r.ir.understanding.deliverablesExpected.some(d => d.includes("Explicación")) },
+    { id: "T-27", name: "SerializerSystem.buildXML produce XML bien formado incluso con caracteres especiales en la petición (sin cobertura automática previa)", in: "Compara precio & \"calidad\" de estos productos <A> y <B>", assert: r => {
+        if (r.error) return false;
+        const xml = SerializerSystem.buildXML(r.ir);
+        try { return !new DOMParser().parseFromString(xml, "application/xml").querySelector("parsererror"); }
+        catch (e) { return false; }
+      } },
+    { id: "T-28", name: "SerializerSystem.buildAKI expone todas las secciones del contrato, no solo un subconjunto (sin cobertura automática previa)", in: "Quiero crear un sistema automático para controlar el nivel de agua de un depósito.", assert: r => {
+        if (r.error) return false;
+        const aki = SerializerSystem.buildAKI(r.ir);
+        return ["ASSUMED_DEFAULTS", "PENDING_QUESTIONS", "SUBGOALS", "CAPABILITIES", "EXECUTION_PHASES", "DEFINITION_OF_DONE", "VALIDATION"].every(marker => aki.includes(marker));
+      } },
+    { id: "T-29", name: "Artefactos base+modificado activan comparación de diff y aparecen en el contrato (fix v409: los campos v1/v2 de la UI se pasaban a compilarV401 pero se ignoraban por completo)", in: "Revisa si el cambio introduce alguna regresión", artifact: "function suma(a,b) { return a+b; }", modified: "function suma(a,b) { return a-b; }", assert: r => !r.error && r.ir.capabilityPlan.required.includes("DIFF_ANALYSIS") && r.executablePrompt.includes("function suma(a,b) { return a-b; }") && r.executablePrompt.includes("function suma(a,b) { return a+b; }") },
+    { id: "T-30", name: "Solo artefacto base (sin modificado) activa comprensión de código base, no diff (fix v409)", in: "Añade una función de validación a este código", artifact: "function suma(a,b) { return a+b; }", assert: r => !r.error && r.ir.capabilityPlan.required.includes("CODE_COMPREHENSION") && !r.ir.capabilityPlan.required.includes("DIFF_ANALYSIS") },
+    { id: "T-31", name: "Sin artefactos, la sección de artefactos no aparece en el contrato (sin ruido innecesario)", in: "Quiero organizar mi semana", assert: r => !r.error && !r.executablePrompt.includes("ARTEFACTOS TÉCNICOS") },
+    { id: "T-32", name: "escXml también escapa comillas dobles/simples (fix v410: protege atributos XML como primary_goal, vulnerables si el objetivo inferido llevara comillas — p. ej. vía análisis por IA)", in: "hola mundo, esto es un test", assert: () => {
+        const escaped = escXml('Dice "hola" y \'adiós\'');
+        return escaped.includes('&quot;') && escaped.includes('&apos;') && !escaped.includes('"') && !escaped.includes("'");
+      } },
+    { id: "T-33", name: "buildXML sigue siendo XML válido si el objetivo inferido contiene comillas (regresión del fix v410, escenario real si se usa IA)", in: "petición cualquiera para tener un ir válido", assert: r => {
+        if (r.error) return false;
+        const fakeIr = JSON.parse(JSON.stringify(r.ir));
+        fakeIr.goalGraph.primaryGoal = 'Un objetivo con "comillas" y \'otras\' comillas';
+        const xml = SerializerSystem.buildXML(fakeIr);
+        try { return !new DOMParser().parseFromString(xml, "application/xml").querySelector("parsererror"); }
+        catch (e) { return false; }
+      } },
+    { id: "T-34", name: "Markdown escapa artefactos que ya contienen su propia valla de código (fix v410, evita romper el formato)", in: "Compara este snippet de documentación", artifact: "Ejemplo:\n```js\nconsole.log(1)\n```", assert: r => {
+        if (r.error) return false;
+        const md = SerializerSystem.buildMarkdown(r.ir);
+        return md.includes("console.log(1)") && md.includes("````");
+      } },
+    { id: "T-36", name: "hasSoftware reconoce conjugaciones de 'programar'/'gestionar' (fix v411: mismo bug de palabra suelta sin conjugar que v404 corrigió en otros dominios, pero nunca se aplicó aquí)", in: "Quiero programar una calculadora que gestione mis gastos mensuales", assert: r => !r.error && r.ir.capabilityPlan.required.includes("SOFTWARE_DESIGN") },
+    { id: "T-37", name: "hasLegal reconoce conjugaciones de 'denunciar' (fix v411, mismo patrón)", in: "¿Cómo denuncio a mi vecino por el ruido que hace de madrugada?", assert: r => !r.error && r.ir.capabilityPlan.required.includes("LEGAL_RESEARCH") },
+    { id: "T-38", name: "hasFinanzas reconoce conjugaciones de 'ahorrar' (fix v411, mismo patrón)", in: "¿Cómo ahorro más dinero cada mes sin renunciar a mis gustos?", assert: r => !r.error && r.ir.capabilityPlan.required.includes("FINANCIAL_ANALYSIS") },
+    { id: "T-39", name: "OutcomeContractEngine ya no calcula un completionCriteria muerto que ningún serializador leía (fix v412, limpieza de código sin usar y redundante con DefinitionOfDoneEngine)", in: "Quiero organizar mi semana", assert: r => !r.error && !('completionCriteria' in r.ir.outcomeContract) && !!r.ir.outcomeContract.successDefinition && !!r.ir.outcomeContract.deliverables },
+    { id: "T-40", name: "hasIndustrial reconoce 'el coche no arranca' (fix v414, hallado con pruebas de tema aleatorio: la frase natural más común de avería no se detectaba en absoluto)", in: "Es urgente, mi coche no arranca y tengo que salir de viaje mañana", assert: r => !r.error && r.ir.capabilityPlan.required.includes("TECHNICAL_DIAGNOSIS") },
+    { id: "T-41", name: "hasLegal reconoce 'despiden' (conjugación irregular de despedir), no solo 'despido' (fix v414, hallado con pruebas de tema aleatorio)", in: "¿Cuáles son mis derechos si me despiden sin previo aviso?", assert: r => !r.error && r.ir.capabilityPlan.required.includes("LEGAL_RESEARCH") },
+    { id: "T-42", name: "hasSoftware reconoce 'app' (mucho más común en el habla cotidiana que 'aplicación') — fix v415, hallado con pruebas de tema aleatorio en una petición multi-dominio", in: "Necesito un contrato de arrendamiento y una app que lleve la contabilidad del alquiler", assert: r => !r.error && r.ir.capabilityPlan.required.includes("SOFTWARE_DESIGN") && r.ir.capabilityPlan.required.includes("LEGAL_RESEARCH") },
+    { id: "T-43", name: "hasSoftware reconoce 'Python'/'backend'/'base de datos' (fix v416, hallado con pruebas de tema aleatorio)", in: "Quiero automatizar el backend de mi tienda con Python y una base de datos", assert: r => !r.error && r.ir.capabilityPlan.required.includes("SOFTWARE_DESIGN") },
+    { id: "T-44", name: "hasPurchaseCompare reconoce conjugaciones comunes de 'comprar' (compro/compra/comprando), no solo las que empiezan literalmente por 'comprar' (fix v416)", in: "Se me ha caído el móvil y la pantalla está rota, ¿lo reparo o compro uno nuevo?", assert: r => !r.error && r.ir.capabilityPlan.required.includes("PRICE_COMPARISON") },
+    { id: "T-45", name: "hasWriting ya no se dispara con 'carta' en el sentido de menú de restaurante, solo con 'una carta' (fix v416, regresión del caso real)", in: "Necesito diseñar la web de mi restaurante con carta y reservas online", assert: r => !r.error && !r.ir.capabilityPlan.required.includes("WRITING") && r.ir.capabilityPlan.required.includes("SOFTWARE_DESIGN") },
+    { id: "T-46", name: "'una carta' sigue reconociéndose como encargo de escritura real, sin necesidad de otra palabra de escritura presente (no regresión del fix v416)", in: "Necesito una carta de recomendación para mi antiguo empleado", assert: r => !r.error && r.ir.capabilityPlan.required.includes("WRITING") },
+    { id: "T-47", name: "Auto-detección de idioma reconoce inglés y lo declara en el contrato (fix v417)", in: "I want to create an automatic system to control the water level of a tank", assert: r => !r.error && r.ir.understanding.lang === "en" && r.executablePrompt.includes("IDIOMA DE ANÁLISIS: en") },
+    { id: "T-48", name: "Auto-detección de idioma reconoce español (no regresión: sigue siendo el idioma por defecto)", in: "Quiero crear un sistema automático para controlar el nivel de agua de un depósito", assert: r => !r.error && r.ir.understanding.lang === "es" },
+    { id: "T-49", name: "Paquete de inglés reconoce dominio industrial con 'car won't start' (paralelo al fix v414 de 'coche no arranca')", in: "My car won't start and I need to leave for a trip tomorrow", assert: r => !r.error && r.ir.capabilityPlan.required.includes("TECHNICAL_DIAGNOSIS") },
+    { id: "T-50", name: "Paquete de inglés reconoce dominio legal ('fired without notice', paralelo a 'despiden')", in: "What are my rights if I get fired without notice?", assert: r => !r.error && r.ir.capabilityPlan.required.includes("LEGAL_RESEARCH") },
+    { id: "T-51", name: "Selección manual de idioma tiene prioridad sobre la auto-detección", in: "Quiero comprar un ordenador nuevo", lang: "en", assert: r => !r.error && r.ir.understanding.lang === "en" },
+    { id: "T-52", name: "SerializerSystem.buildXML sigue siendo XML válido con contenido en inglés", in: "I need to compare two laptops and decide which one to buy", assert: r => {
+        if (r.error) return false;
+        const xml = SerializerSystem.buildXML(r.ir);
+        try { return !new DOMParser().parseFromString(xml, "application/xml").querySelector("parsererror") && xml.includes("<analysis_language>en</analysis_language>"); }
+        catch (e) { return false; }
+      } }
   ];
 
   let passed = 0;
@@ -1053,7 +1466,10 @@ const ejecutarTestsV401 = async () => {
   window.fetch = (...args) => { networkCalls++; return originalFetch(...args); };
   try {
     for (const t of tests) {
-      const res = await compilarV401(t.in, "", "", "GENERIC", ""); // sin key: modo local por defecto
+      // Fix v409: acepta t.artifact/t.modified opcionales para poder testear
+      // el nuevo cableado de artefactos técnicos sin romper los tests
+      // existentes (por defecto siguen siendo "").
+      const res = await compilarV401(t.in, t.artifact || "", t.modified || "", "GENERIC", "", t.lang); // sin key: modo local por defecto
       const isPass = t.assert(res);
       if (isPass) passed++;
       out += `[${t.id}] ${t.name}\n >> RESULT: ${isPass ? 'PASS ✓' : 'FAIL ✗'}\n\n`;
@@ -1065,7 +1481,16 @@ const ejecutarTestsV401 = async () => {
   const netTestPass = networkCalls === 0;
   if (netTestPass) passed++;
   out += `[T-NET] Sin API key: cero llamadas de red durante todos los tests (seguridad para PCs sin acceso restringido)\n >> RESULT: ${netTestPass ? 'PASS ✓' : 'FAIL ✗'} (${networkCalls} llamada(s) detectada(s))\n\n`;
-  const totalTests = tests.length + 1;
+
+  // Fix v409 (README pendiente): el campo de petición ya no trae una tarea de
+  // ejemplo precargada por defecto — solo placeholder. Nota: este check solo
+  // es representativo si no has escrito nada en el campo antes de pulsar
+  // "Ejecutar Test Framework V401".
+  const emptyByDefaultPass = ($('userRequest')?.value || "") === "";
+  if (emptyByDefaultPass) passed++;
+  out += `[T-EMPTY] El campo de petición no trae una tarea de ejemplo precargada por defecto\n >> RESULT: ${emptyByDefaultPass ? 'PASS ✓' : 'FAIL ✗ (no representativo si ya escribiste algo en el campo)'}\n\n`;
+
+  const totalTests = tests.length + 2;
 
   out += `=================================================\nVEREDICTO FINAL: ${passed}/${totalTests} TESTS SUPERADOS.\n`;
   if ($('testResults')) $('testResults').textContent = out;
