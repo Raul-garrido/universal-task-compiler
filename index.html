@@ -1149,6 +1149,7 @@ ${ir.artifacts.base ? `ARTEFACTO BASE (v1):\n${ir.artifacts.base}\n` : ''}${ir.a
 
 0. ANALYSIS SOURCE (TRANSPARENCIA)
 -----------------------------------
+TASK ID: ${ir.requestId}
 FUENTE DEL ANÁLISIS SEMÁNTICO: ${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${u.aiFallbackReason}]` : ''}
 IDIOMA DE ANÁLISIS: ${u.lang || 'es'}
 
@@ -1328,6 +1329,7 @@ ${ir.artifacts.base ? (() => { const f = mdFenceFor(ir.artifacts.base); return `
 > Goal-driven reasoning, Capability Planner & Anti-Shallowness Enforcer.
 
 ## 0. Fuente del análisis
+**Task ID:** ${ir.requestId}
 **Fuente del análisis semántico:** ${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${u.aiFallbackReason}]` : ''}
 **Idioma de análisis:** ${u.lang || 'es'}
 
@@ -2086,6 +2088,33 @@ const ejecutarTestsV401 = async () => {
     { id: "R-248", name: "Regresión corpus real (petición #248)", in: "dime cuanto tarda en curarse un esguince de tobillo leve y que puedo hacer mientras tanto.", assert: r => !r.error && r.ir.capabilityPlan.required.join(',') === "RESEARCH,INFORMATION_SYNTHESIS,DECISION_ANALYSIS" },
     { id: "R-249", name: "Regresión corpus real (petición #249)", in: "necesito un mensaje pa avisar a los inquilinos que se va a cortar el gas por mantenimiento un dia.", assert: r => !r.error && r.ir.capabilityPlan.required.join(',') === "RESEARCH,INFORMATION_SYNTHESIS,DECISION_ANALYSIS" },
     { id: "R-250", name: "Regresión corpus real (petición #250)", in: "como se hace la masa de crepes casera pa que no queden ni muy gruesas ni se rompan.", assert: r => !r.error && r.ir.capabilityPlan.required.join(',') === "RESEARCH,INFORMATION_SYNTHESIS,DECISION_ANALYSIS" },
+
+    // Fix v454: casos límite evaluados a raíz de dos propuestas de tests
+    // (ChatGPT y Gemini) sobre una petición de este mismo compilador, pedidas
+    // a través de otras IAs y contrastadas con juicio propio antes de aplicar
+    // nada — ver memoria del proyecto. Todos verificados en vivo contra el
+    // motor real ANTES de escribirse aquí: ninguno reveló un defecto, así
+    // que estas pruebas fijan (regression-lock) el comportamiento correcto
+    // ya existente, no corrigen nada.
+    { id: "T-E1", name: "Entrada de solo espacios/saltos de línea se trata igual que vacía (edge case, no rompe)", in: "   \n\t  ", assert: r => r.error === "EMPTY" },
+    { id: "T-E2", name: "Entrada de solo emojis no rompe el motor, da WARNING honesto por falta de dominio reconocido", in: "🎉🎉🎉🚀", assert: r => !r.error && r.ir.validation.status === "WARNING" },
+    { id: "T-E3", name: "Texto extremadamente largo (~9000 caracteres) no rompe el motor ni se cuelga", in: "quiero un resumen ".repeat(500), assert: r => !r.error && r.executablePrompt.length > 100 },
+    { id: "T-E4", name: "Entrada en MAYÚSCULAS sigue detectando el dominio (el motor hace toLowerCase antes de comparar)", in: "QUIERO CREAR UNA APLICACIÓN EN PYTHON", assert: r => !r.error && r.ir.capabilityPlan.required.includes("SOFTWARE_DESIGN") },
+    { id: "T-E5", name: "Contenido tipo HTML/script en la entrada no rompe el motor (no es una vulnerabilidad real: escapeHTML ya protege los innerHTML del trace log e historial, ver T-E8)", in: "<script>alert(1)<\/script> quiero un resumen de este texto", assert: r => !r.error && r.ir.capabilityPlan.required.includes("CRITICAL_ANALYSIS") },
+    { id: "T-E6", name: "Determinismo: la misma petición en modo local produce exactamente el mismo resultado dos veces seguidas", in: "Quiero comparar dos portátiles y decidir cuál comprar", assert: async r => {
+        const r2 = await compilarV401("Quiero comparar dos portátiles y decidir cuál comprar", "", "", "GENERIC", "", "", undefined);
+        return !r.error && !r2.error && JSON.stringify(r.ir.capabilityPlan.required) === JSON.stringify(r2.ir.capabilityPlan.required) && JSON.stringify(r.ir.goalGraph.subGoals) === JSON.stringify(r2.ir.goalGraph.subGoals);
+      } },
+    { id: "T-E7", name: "Parámetros cuantitativos exactos ('exactamente 42 palabras') se preservan textualmente en el prompt final, no se parafrasean", in: "Resume esta noticia en exactamente 42 palabras, ni una más ni una menos", assert: r => !r.error && r.executablePrompt.includes("42 palabras") },
+    { id: "T-E8", name: "escapeHTML() sigue escapando correctamente los 5 caracteres peligrosos (regression-lock de la defensa XSS de los innerHTML del trace log e historial)", in: "test", assert: r => !r.error && escapeHTML(`<script>&"'`) === "&lt;script&gt;&amp;&quot;&#39;" },
+    { id: "T-E9", name: "Los 3 serializadores menos usados (XML/Markdown/Compact) no rompen y los 5 formatos incluyen el Task ID (fix v454: GENERIC y Markdown no lo incluían, hallado evaluando la propuesta de Gemini)", in: "Necesito una función en python que valide un email", assert: r => {
+        if (r.error) return false;
+        const xml = SerializerSystem.buildXML(r.ir);
+        const xmlValid = !new DOMParser().parseFromString(xml, "application/xml").querySelector("parsererror");
+        const md = SerializerSystem.buildMarkdown(r.ir);
+        const compact = SerializerSystem.buildCompact(r.ir);
+        return xmlValid && xml.includes(r.ir.requestId) && md.includes(r.ir.requestId) && compact.includes(r.ir.requestId) && r.executablePrompt.includes(r.ir.requestId);
+      } },
   ];
 
   let passed = 0;
@@ -2098,7 +2127,11 @@ const ejecutarTestsV401 = async () => {
       // el nuevo cableado de artefactos técnicos sin romper los tests
       // existentes (por defecto siguen siendo "").
       const res = await compilarV401(t.in, t.artifact || "", t.modified || "", "GENERIC", "", "", t.lang); // sin keys: modo local por defecto
-      const isPass = t.assert(res);
+      // Fix v454: await por si el assert es async (caso del test de
+      // determinismo, que necesita compilar dos veces) — para un assert
+      // síncrono normal "await true/false" no cambia nada, así que los 426
+      // tests existentes se comportan exactamente igual que antes.
+      const isPass = await t.assert(res);
       if (isPass) passed++;
       out += `[${t.id}] ${t.name}\n >> RESULT: ${isPass ? 'PASS ✓' : 'FAIL ✗'}\n\n`;
     }
@@ -2118,7 +2151,69 @@ const ejecutarTestsV401 = async () => {
   if (emptyByDefaultPass) passed++;
   out += `[T-EMPTY] El campo de petición no trae una tarea de ejemplo precargada por defecto\n >> RESULT: ${emptyByDefaultPass ? 'PASS ✓' : 'FAIL ✗ (no representativo si ya escribiste algo en el campo)'}\n\n`;
 
-  const totalTests = tests.length + 2;
+  // Fix v454: pruebas formalizadas de la ruta de IA (Claude/Gemini + fallback
+  // en cascada) — antes solo se habían verificado a mano en la consola del
+  // navegador durante la sesión en la que se construyó esta función, sin
+  // quedar guardadas en ningún sitio. Usan fetch mockeado, igual que el resto
+  // del framework: cero llamadas de red reales, no dependen de tener una key
+  // válida ni de que haya conexión a internet.
+  const aiTests = [
+    { id: "T-AI-1", name: "Solo key de Claude: se usa Claude, nunca se llama a Gemini", run: async () => {
+        const of = window.fetch; let hosts = [];
+        window.fetch = (url) => { hosts.push(new URL(url).host); return Promise.resolve({ ok: true, json: async () => ({ content: [{ text: JSON.stringify({ explicitGoal:"x", inferredGoal:"y", desiredOutcome:"z", userPreferences:[], userConstraints:[], deliverablesExpected:["a"], subGoals:[{id:"SG-01",objective:"o",priority:"HIGH"}], requiredCapabilities:["T"], ambiguities:[] }) }] }) }); };
+        let r; try { r = await aiUnderstandingDual("t", "sk-ant-fake", "", undefined); } finally { window.fetch = of; }
+        return hosts.length === 1 && hosts[0] === "api.anthropic.com" && r.source === "ai";
+      } },
+    { id: "T-AI-2", name: "Solo key de Gemini: se usa Gemini, nunca se llama a Claude", run: async () => {
+        const of = window.fetch; let hosts = [];
+        window.fetch = (url) => { hosts.push(new URL(url).host); return Promise.resolve({ ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify({ explicitGoal:"x", inferredGoal:"y", desiredOutcome:"z", userPreferences:[], userConstraints:[], deliverablesExpected:["a"], subGoals:[{id:"SG-01",objective:"o",priority:"HIGH"}], requiredCapabilities:["T"], ambiguities:[] }) }] } }] }) }); };
+        let r; try { r = await aiUnderstandingDual("t", "", "AIzaFake", undefined); } finally { window.fetch = of; }
+        return hosts.length === 1 && hosts[0] === "generativelanguage.googleapis.com" && r.source === "ai";
+      } },
+    { id: "T-AI-3", name: "Las dos keys, Claude funciona: NO se llama a Gemini (Claude tiene prioridad)", run: async () => {
+        const of = window.fetch; let hosts = [];
+        window.fetch = (url) => { hosts.push(new URL(url).host); return Promise.resolve({ ok: true, json: async () => ({ content: [{ text: JSON.stringify({ explicitGoal:"x", inferredGoal:"y", desiredOutcome:"z", userPreferences:[], userConstraints:[], deliverablesExpected:["a"], subGoals:[{id:"SG-01",objective:"o",priority:"HIGH"}], requiredCapabilities:["T"], ambiguities:[] }) }] }) }); };
+        try { await aiUnderstandingDual("t", "sk-ant-fake", "AIzaFake", undefined); } finally { window.fetch = of; }
+        return hosts.length === 1 && hosts[0] === "api.anthropic.com";
+      } },
+    { id: "T-AI-4", name: "Las dos keys, Claude falla (error HTTP): cae automáticamente a Gemini como respaldo", run: async () => {
+        const of = window.fetch; let hosts = [];
+        window.fetch = (url) => {
+          const host = new URL(url).host; hosts.push(host);
+          if (host === "api.anthropic.com") return Promise.resolve({ ok: false, status: 500 });
+          return Promise.resolve({ ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify({ explicitGoal:"x", inferredGoal:"y", desiredOutcome:"z", userPreferences:[], userConstraints:[], deliverablesExpected:["a"], subGoals:[{id:"SG-01",objective:"o",priority:"HIGH"}], requiredCapabilities:["T"], ambiguities:[] }) }] } }] }) });
+        };
+        let r; try { r = await aiUnderstandingDual("t", "sk-ant-fake", "AIzaFake", undefined); } finally { window.fetch = of; }
+        return hosts.length === 2 && hosts[0] === "api.anthropic.com" && hosts[1] === "generativelanguage.googleapis.com" && r.source === "ai";
+      } },
+    { id: "T-AI-5", name: "Cancelación del usuario (AbortError) nunca cae a Gemini aunque haya key de respaldo", run: async () => {
+        const of = window.fetch;
+        window.fetch = () => { const e = new Error("aborted"); e.name = "AbortError"; return Promise.reject(e); };
+        let threw = false, wasAbort = false;
+        try { await aiUnderstandingDual("t", "sk-ant-fake", "AIzaFake", undefined); } catch (e) { threw = true; wasAbort = e.name === "AbortError"; } finally { window.fetch = of; }
+        return threw && wasAbort;
+      } },
+    { id: "T-AI-6", name: "Respuesta de IA con forma inválida (sin subGoals/requiredCapabilities) lanza SHAPE_ERROR, no se acepta silenciosamente", run: async () => {
+        const of = window.fetch;
+        window.fetch = () => Promise.resolve({ ok: true, json: async () => ({ content: [{ text: JSON.stringify({ inferredGoal: "y" }) }] }) });
+        let threw = false, msg = ""; try { await aiUnderstandingDual("t", "sk-ant-fake", "", undefined); } catch (e) { threw = true; msg = e.message; } finally { window.fetch = of; }
+        return threw && msg === "SHAPE_ERROR";
+      } },
+    { id: "T-AI-7", name: "Respuesta de Claude envuelta en fences de markdown (```json ... ```) se limpia y parsea igualmente", run: async () => {
+        const of = window.fetch;
+        window.fetch = () => Promise.resolve({ ok: true, json: async () => ({ content: [{ text: "```json\n" + JSON.stringify({ explicitGoal:"x", inferredGoal:"y", desiredOutcome:"z", userPreferences:[], userConstraints:[], deliverablesExpected:["a"], subGoals:[{id:"SG-01",objective:"o",priority:"HIGH"}], requiredCapabilities:["FENCE_OK"], ambiguities:[] }) + "\n```" }] }) });
+        let r; try { r = await aiUnderstandingDual("t", "sk-ant-fake", "", undefined); } finally { window.fetch = of; }
+        return r.requiredCapabilities.includes("FENCE_OK");
+      } },
+  ];
+  for (const t of aiTests) {
+    let ok = false;
+    try { ok = await t.run(); } catch (e) { ok = false; }
+    if (ok) passed++;
+    out += `[${t.id}] ${t.name}\n >> RESULT: ${ok ? 'PASS ✓' : 'FAIL ✗'}\n\n`;
+  }
+
+  const totalTests = tests.length + 2 + aiTests.length;
 
   out += `=================================================\nVEREDICTO FINAL: ${passed}/${totalTests} TESTS SUPERADOS.\n`;
   if ($('testResults')) $('testResults').textContent = out;
