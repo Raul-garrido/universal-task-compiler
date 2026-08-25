@@ -81,9 +81,15 @@
 
           <details>
             <summary>⚙️ Avanzado (opcional): activar IA en línea con tu propia API key</summary>
-            <input id="apiKeyClaude" type="password" placeholder="sk-ant-... (Claude, opcional)" autocomplete="off" style="margin-top:6px">
-            <input id="apiKeyGemini" type="password" placeholder="AIza... (Gemini, opcional)" autocomplete="off" style="margin-top:6px">
-            <p style="font-size:10px;color:var(--muted);margin-top:-4px;">Por defecto, con los dos campos vacíos, la herramienta NO hace ninguna llamada a internet: todo el análisis es local. Recomendado dejarlos vacíos en equipos sin acceso a internet o con restricciones. Si rellenas solo uno, se usa ese. Si rellenas los dos, se usa Claude por defecto y solo se pasa a Gemini automáticamente si Claude no está disponible (error de red, key inválida, etc.). Ninguna key se guarda: se borran solas de estos campos tras cada compilación.</p>
+            <label style="display:flex;align-items:center;gap:6px;margin-top:6px;">
+              <input type="checkbox" id="useClaude" style="width:auto;margin:0;">
+              <input id="apiKeyClaude" type="password" placeholder="sk-ant-... (Claude)" autocomplete="off" style="flex:1;margin-top:0;" oninput="if(this.value.trim()) $('useClaude').checked = true;">
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;margin-top:6px;">
+              <input type="checkbox" id="useGemini" style="width:auto;margin:0;">
+              <input id="apiKeyGemini" type="password" placeholder="AIza... (Gemini)" autocomplete="off" style="flex:1;margin-top:0;" oninput="if(this.value.trim()) $('useGemini').checked = true;">
+            </label>
+            <p style="font-size:10px;color:var(--muted);margin-top:6px;">Por defecto, con las dos casillas sin marcar, la herramienta NO hace ninguna llamada a internet: todo el análisis es local. Marca la casilla del proveedor que quieras usar (se marca sola al pegar una key). Si marcas solo una, se usa esa. Si marcas las dos, se usa Claude por defecto y solo se pasa a Gemini automáticamente si Claude no está disponible (error de red, key inválida, etc.). Ninguna key se guarda: se borran solas de estos campos tras cada compilación.</p>
           </details>
 
           <div class="row" style="margin-top: 8px;">
@@ -1059,7 +1065,7 @@ const SerializerSystem = {
     return `[AKI EXECUTION CONTRACT — V401 GOAL-DRIVEN]
 :: TASK_ID = ${ir.requestId}
 :: STATUS = ${ir.validation.status} (${passedCount}/${ir.validation.checks.length})
-:: ANALYSIS_SOURCE = ${u.source === 'ai' ? 'ai (comprensión semántica real)' : 'local (heurística por reglas — aproximada, revisar antes de confiar del todo)'}
+:: ANALYSIS_SOURCE = ${u.source === 'ai' ? 'ai (comprensión semántica real)' : 'local (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${u.aiFallbackReason}]` : ''}
 :: LANGUAGE = ${u.lang || 'es'}
 
 :: EXPLICIT_GOAL
@@ -1138,7 +1144,7 @@ ${ir.artifacts.base ? `ARTEFACTO BASE (v1):\n${ir.artifacts.base}\n` : ''}${ir.a
 
 0. ANALYSIS SOURCE (TRANSPARENCIA)
 -----------------------------------
-FUENTE DEL ANÁLISIS SEMÁNTICO: ${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}
+FUENTE DEL ANÁLISIS SEMÁNTICO: ${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${u.aiFallbackReason}]` : ''}
 IDIOMA DE ANÁLISIS: ${u.lang || 'es'}
 
 1. UNIVERSAL REQUEST UNDERSTANDING
@@ -1223,7 +1229,7 @@ ${artifactsSection}
     return `<canonical_execution_contract task_id="${escXml(ir.requestId)}" status="${ir.validation.status}">
   <architectural_directive>Goal-driven reasoning, Capability Planner &amp; Anti-Shallowness Enforcer.</architectural_directive>
 
-  <analysis_source method="${u.source}">${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}</analysis_source>
+  <analysis_source method="${u.source}">${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${escXml(u.aiFallbackReason)}]` : ''}</analysis_source>
   <analysis_language>${escXml(u.lang || 'es')}</analysis_language>
 
   <request_understanding>
@@ -1317,7 +1323,7 @@ ${ir.artifacts.base ? (() => { const f = mdFenceFor(ir.artifacts.base); return `
 > Goal-driven reasoning, Capability Planner & Anti-Shallowness Enforcer.
 
 ## 0. Fuente del análisis
-**Fuente del análisis semántico:** ${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}
+**Fuente del análisis semántico:** ${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${u.aiFallbackReason}]` : ''}
 **Idioma de análisis:** ${u.lang || 'es'}
 
 ## 1. Comprensión de la petición
@@ -1388,7 +1394,7 @@ ${artifactsMd}
       ? `ARTIFACTS: base=${ir.artifacts.base ? 'provided' : 'none'}; modified=${ir.artifacts.modified ? 'provided' : 'none'} (ver adapter GENERIC/CLAUDE/CHATGPT/AKI para el contenido completo)\n`
       : '';
 
-    return `TASK[${ir.requestId}] SRC=${u.source} LANG=${u.lang || 'es'} STATUS=${ir.validation.status} (${passedCount}/${ir.validation.checks.length})
+    return `TASK[${ir.requestId}] SRC=${u.source}${u.aiFallbackReason ? `(fallback:${u.aiFallbackReason})` : ''} LANG=${u.lang || 'es'} STATUS=${ir.validation.status} (${passedCount}/${ir.validation.checks.length})
 GOAL.explicit="${u.explicitGoal.replace(/\n/g, ' ')}"
 GOAL.inferred="${u.inferredGoal}"
 OUTCOME="${u.desiredOutcome}"
@@ -1429,6 +1435,12 @@ const compilarV401 = async (input, artifactText, modifiedText, adapter, apiKeyCl
         // detener todo el pipeline y que la UI lo muestre como cancelado.
         if (e.name === "AbortError") { logTrace("SYS", "Generación cancelada por el usuario.", "warn"); throw e; }
         understanding = localHeuristicUnderstanding(input, langOverride);
+        // Fix v451: el motivo del fallo se estaba quedando solo en el TRACE
+        // LOG (pestaña que hay que abrir aposta) — quien pidió IA explícita
+        // veía "LOCAL" en el contrato final sin ninguna pista de por qué, y
+        // parecía que ni se había intentado. Ahora el motivo viaja con el
+        // understanding y los serializadores lo imprimen junto a la fuente.
+        understanding.aiFallbackReason = e.message;
         logTrace("INTELLIGENCE", `IA no disponible (${e.message}). Usando análisis local.`, "warn");
       }
     } else {
@@ -1514,8 +1526,11 @@ const ejecutarCompilacionV401 = async () => {
   const promptEl = $('executablePrompt');
   const btn = $('btnCompile');
   const cancelBtn = $('btnCancelCompile');
-  const keyClaude = $('apiKeyClaude')?.value?.trim() || "";
-  const keyGemini = $('apiKeyGemini')?.value?.trim() || "";
+  // Fix v451: casillas explícitas por proveedor en vez de usar la sola
+  // presencia de la key como señal — así se puede tener una key rellena
+  // pero desmarcada (p. ej. para probar solo con la otra) sin borrarla.
+  const keyClaude = $('useClaude')?.checked ? ($('apiKeyClaude')?.value?.trim() || "") : "";
+  const keyGemini = $('useGemini')?.checked ? ($('apiKeyGemini')?.value?.trim() || "") : "";
   const usandoIA = !!(keyClaude || keyGemini);
   if (promptEl) promptEl.textContent = "Generando el prompt (analizando con IA si está disponible)...";
   if (btn) { btn.disabled = true; btn.textContent = "⏳ Generando Prompt..."; }
