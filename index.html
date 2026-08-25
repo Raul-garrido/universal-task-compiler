@@ -75,7 +75,7 @@
           <div class="help-tooltip" id="helpRequest">
             <b>Definición:</b> Introduce cualquier tarea en lenguaje natural, de cualquier materia, aunque no sepas nada de IA ni de "prompts". Por defecto el análisis es 100% local (sin conexión a internet ni API key): detecta qué te falta especificar (formato, tono, público, restricciones...) y te lo pregunta, para ayudarte a construir un prompt eficaz paso a paso.
           </div>
-          <textarea id="userRequest" placeholder="Introduce aquí tu tarea, prompt o solicitud...">Quiero crear un sistema automático para controlar el nivel de agua de un depósito.</textarea>
+          <textarea id="userRequest" placeholder="Introduce aquí tu tarea, prompt o solicitud...">quiero que analices el documento y revises el generador de promt si es totalmente funcinal, autonomo interpretando el texto de solicitud de un inexperto y convirtiendolo en una peticion mas avanzada. Asi elegir bien todas las variables para generar el correcto y definitivo promp como el que crearia una IA experta en arquitectura de promt</textarea>
 
           <details>
             <summary>⚙️ Avanzado (opcional): activar IA en línea con tu propia API key</summary>
@@ -204,6 +204,15 @@
  * (formatear, no "entender"): SerializerSystem, UniversalExecutionPlanner,
  * la aritmética de readinessIndex, y las políticas universales de
  * DefinitionOfDoneEngine que son genuinamente independientes del dominio.
+ *
+ * Fix v403 (tras comparar con wizard.html, variante paralela del proyecto):
+ * el motor local dejó de convertir cada ingrediente de prompt ausente
+ * (formato, tono, audiencia, extensión, criterios) en una pregunta
+ * bloqueante — eso devolvía trabajo al usuario, justo lo contrario del
+ * objetivo del README. Ahora se asigna un valor por defecto razonable
+ * (assumedDefaults, sección 1.5 del contrato: declarado y editable, nunca
+ * oculto) y solo queda como pregunta real (ambiguities, sección 1.6) lo que
+ * NO se puede asumir con seguridad, como una cifra de presupuesto.
  */
 
 const $ = id => document.getElementById(id);
@@ -354,12 +363,20 @@ function localHeuristicUnderstanding(rawGoal) {
   // --- Orientación por dominio (aditiva, no excluyente) ---
   const hasHardwareSystem = /\b(depósito|agua|sistema|automático|control|sensor|actuador)\b/.test(l);
   const hasSoftware = /\b(html|programa|aplicación|gestiona|javascript|código|software)\b/.test(l);
-  const hasPurchaseCompare = /\b(compar|mejor|diferencia|precio|coste|barat|comprar|producto)\b/.test(l);
-  const hasAnalysis = /\b(analiza|estudia|revisa|audita|informe)\b/.test(l);
+  // Fix v404: "compar"/"analiza"/"revisa" sueltas (sin \w*) no casaban con
+  // conjugaciones reales ("comparar", "analices", "revises"), así que la
+  // petición nunca activaba su propio dominio. "mejor" y "organiz\w*" se
+  // quitaron por la misma colisión que "local" arriba: "la mejor calidad
+  // posible" y "organizado en pasos" son lenguaje de instrucción de
+  // formato/calidad, no señales de comprar o planificar un viaje.
+  const hasPurchaseCompare = /\b(compar\w*|diferencia|precio|coste|barat\w*|comprar\w*|producto)\b/.test(l);
+  const hasAnalysis = /\b(analiz\w*|estudi\w*|revis\w*|audit\w*|informe)\b/.test(l);
   const hasWriting = /\b(escrib\w*|redact\w*|carta|email|correo|artículo|guion|historia|cuento)\b/.test(l);
   const hasLearning = /\b(explic\w*|enseñ\w*|aprend\w*|cómo funciona|qué es|entender)\b/.test(l);
-  const hasPlanning = /\b(planes?|planific\w*|organiz\w*|viaje|evento|itinerario|calendario)\b/.test(l);
-  const hasOffline = /\b(offline|sin internet|sin conexión|local)\b/.test(l);
+  const hasPlanning = /\b(planes?|planific\w*|viaje|evento|itinerario|calendario)\b/.test(l);
+  // Fix: "local" suelta se quitó — colisionaba con "tienda local", "médico
+  // local", etc. (mismo tipo de bug que "Bra" en "palabra" en v400).
+  const hasOffline = /\b(offline|sin internet|sin conexión|sin wifi)\b/.test(l);
 
   let inferredGoal = "Resolver la petición del usuario proporcionando una solución integral y razonada.";
   if (hasHardwareSystem && hasSoftware) inferredGoal = "Diseñar un sistema físico-digital completo, cubriendo tanto el hardware/control como el software que lo gestiona.";
@@ -414,9 +431,13 @@ function localHeuristicUnderstanding(rawGoal) {
   if (hasPlanning) requiredCapabilities.push("PLANNING", "SCHEDULING");
 
   // --- Ingredientes universales de un prompt eficaz (independientes del dominio) ---
-  // Esta es la parte que convierte la herramienta en una ayuda real para
-  // quien no sabe qué debe incluir en un prompt: si no detecta el ingrediente
-  // en el texto, lo convierte en una pregunta concreta en lenguaje llano.
+  // Fix v403 (tras comparar con wizard.html V2): convertir CADA ingrediente
+  // ausente en una pregunta bloqueante devolvía el trabajo al usuario, justo
+  // lo que la herramienta dice evitar (README: "aunque no sepas nada de IA").
+  // Ahora, salvo que el dato sea genuinamente imposible de asumir con
+  // seguridad (p. ej. una cifra de presupuesto concreta), se asigna un valor
+  // por defecto razonable en "assumedDefaults" -declarado y editable, nunca
+  // oculto- en vez de bloquear con una pregunta en "ambiguities".
   const hasFormato = /\b(lista|tabla|informe|documento|email|correo|guion|resumen|esquema|paso a paso|código|imagen|power ?point|excel|pdf|puntos|apartados)\b/.test(l);
   const hasTono = /\b(formal|informal|profesional|sencill[oa]|técnic[oa]|coloquial|creativo|serio|divertido|para niños|para principiantes|cercan[oa])\b/.test(l);
   const hasAudiencia = /\bpara (mi|mis|un|una|los|las|niños|clientes|equipo|jefe|estudiantes|empresa|principiantes)\b/.test(l);
@@ -424,32 +445,41 @@ function localHeuristicUnderstanding(rawGoal) {
   const hasEjemplos = /\b(como|similar a|al estilo de|parecido a|por ejemplo|ejemplo)\b/.test(l);
   const hasRestricciones = /\b(offline|sin internet|sin conexión|presupuesto|gratis|gratuito|plazo|antes del|máximo|mínimo|sin usar)\b/.test(l);
   const hasCriterios = /\b(que (sea|tenga|incluya|logre|permita)|el objetivo es|para que|de forma que|con el fin de)\b/.test(l);
+  // Igual que en el wizard: sin señal explícita de experiencia previa, se
+  // asume que quien pregunta NO sabe del tema (el público objetivo del
+  // proyecto), y solo se sube el registro a técnico si el texto lo indica.
+  const isExpert = /\b(soy (programador\w*|ingenier\w*|médic\w*|abogad\w*|contable|electricista|fontaner\w*|profesional del sector))\b|nivel técnico|a nivel avanzado|para un experto|en profundidad técnica|ya tengo conocimientos (previos|del tema|de esto)/.test(l);
 
+  const assumedDefaults = {};
+  if (!hasFormato) assumedDefaults.formato = "organizado en pasos o puntos claros, fácil de seguir";
+  if (!hasTono) assumedDefaults.tono = isExpert ? "técnico y preciso; no hace falta explicar los conceptos básicos" : "claro, cercano y sin tecnicismos innecesarios; si se usa algún término técnico, se explica brevemente";
+  if (!hasAudiencia) assumedDefaults.audiencia = isExpert ? "alguien con conocimientos previos del tema" : "alguien sin conocimientos previos del tema";
+  if (!hasLongitud) assumedDefaults.longitud = "el detalle necesario para ser accionable, sin relleno superfluo";
+  if (!hasCriterios) assumedDefaults.criterios = "accionable (pasos concretos, no solo teoría), explicando brevemente el porqué de cada recomendación";
+
+  // Preguntas realmente pendientes: solo lo que NO se puede asumir sin
+  // riesgo de estar mal. Un presupuesto o plazo concreto no es algo que deba
+  // "inventarse" como valor por defecto; un ejemplo de estilo en un encargo
+  // de escritura tampoco (afecta directamente al resultado).
   const ambiguities = [];
-  if (!hasFormato) ambiguities.push("¿En qué formato quieres el resultado? (texto normal, lista, tabla, documento, código...)");
-  if (!hasTono) ambiguities.push("¿Qué tono o estilo prefieres? (formal, sencillo, técnico, cercano...)");
-  if (!hasAudiencia) ambiguities.push("¿Para quién es el resultado? (para ti, para un cliente, para un niño, para un equipo técnico...)");
-  if (!hasLongitud) ambiguities.push("¿Qué extensión o nivel de detalle esperas? (breve, con todo detalle, un número de palabras...)");
-  if (!hasEjemplos) ambiguities.push("¿Tienes algún ejemplo o referencia a la que te gustaría que se pareciera el resultado?");
-  if (!hasRestricciones) ambiguities.push("¿Hay alguna restricción? (presupuesto, plazo, herramientas disponibles, sin conexión a internet...)");
-  if (!hasCriterios) ambiguities.push("¿Cómo sabrás que el resultado es bueno? ¿Qué tiene que cumplir sí o sí?");
+  if (!hasRestricciones && (hasPurchaseCompare || hasHardwareSystem)) ambiguities.push("¿Hay un presupuesto, plazo o restricción concreta que deba respetarse?");
+  if (!hasEjemplos && hasWriting) ambiguities.push("¿Tienes algún ejemplo o referencia a la que te gustaría que se pareciera el resultado? (opcional, ayuda a afinar el estilo)");
 
   return {
     source: "local",
     explicitGoal: t,
     inferredGoal,
-    desiredOutcome: "Un resultado útil, validado y estructurado que satisfaga plenamente el objetivo real, resolviendo también las preguntas pendientes detectadas.",
+    desiredOutcome: "Un resultado útil, validado y estructurado que satisfaga plenamente el objetivo real, aplicando las asunciones declaradas y resolviendo las preguntas realmente pendientes.",
     // Fix v401: el motor local NO intenta extraer preferencias/marcas por
     // lista de palabras (era la causa de "Tefal"/"Bra" hardcodeados en v400,
     // con colisiones reales como "palabra" -> "Bra"). Sin IA, no se puede
-    // extraer esto de forma fiable, así que se declara vacío honestamente;
-    // en su lugar, la presencia/ausencia se usa solo para decidir qué
-    // preguntas hacer en "ambiguities", nunca para inventar un valor.
+    // extraer esto de forma fiable, así que se declara vacío honestamente.
     userPreferences: [],
     userConstraints: hasOffline ? ["Funcionalidad offline requerida"] : [],
     deliverablesExpected: [hasHardwareSystem || hasSoftware ? "Solución técnica / Diseño" : (hasWriting ? "Texto redactado" : (hasPlanning ? "Plan / Itinerario" : "Informe / Recomendación estructurada"))],
     subGoals,
     requiredCapabilities: [...new Set(requiredCapabilities)],
+    assumedDefaults,
     ambiguities
   };
 }
@@ -497,6 +527,7 @@ const DefinitionOfDoneEngine = {
     if (capabilityPlan.required.includes("RISK_ANALYSIS")) completionCriteria.push("Deben identificarse explícitamente los riesgos o modos de fallo relevantes.");
     if (capabilityPlan.required.includes("PRICE_COMPARISON")) completionCriteria.push("La comparación debe incluir al menos dos alternativas con criterios explícitos, no una única recomendación sin contraste.");
     if (understanding.ambiguities && understanding.ambiguities.length) completionCriteria.push(`Deben resolverse o declararse explícitamente estas ambigüedades: ${understanding.ambiguities.join('; ')}.`);
+    if (understanding.assumedDefaults && Object.keys(understanding.assumedDefaults).length) completionCriteria.push("Deben respetarse las asunciones por defecto declaradas (sección 1.5), salvo que el usuario indique lo contrario.");
 
     return {
       completionCriteria,
@@ -514,73 +545,176 @@ const DefinitionOfDoneEngine = {
 // afirmaciones de verificación" — que ahora se cumple estructuralmente
 // (exige que la fuente del análisis esté declarada) en vez de ser él mismo
 // una afirmación falsa hardcodeada.
+//
+// Fix v402: el check de "dominio reconocido" se marca como 'info', no
+// 'blocking'. Como el motor local NO puede reconocer todas las materias
+// posibles (cocina, salud, finanzas, legal...), penalizar con WARNING a
+// cualquier petición fuera de las 7 categorías fijas era una falsa alarma
+// para el usuario, no un problema real de su petición. Se sustituye por un
+// check honesto (#5) que sí detecta peticiones genuinamente vacías/vagas.
 const AdversarialValidationEngine = {
   validate: (understanding, goalGraph, capabilityPlan) => {
     const baselineCapCount = 3; // RESEARCH, INFORMATION_SYNTHESIS, DECISION_ANALYSIS son siempre la base
+    const wordCount = understanding.explicitGoal.trim().split(/\s+/).filter(Boolean).length;
     const checks = [
       {
         check: "1. El objetivo inferido no es una copia literal de la petición original",
-        passed: understanding.inferredGoal.trim().toLowerCase() !== understanding.explicitGoal.trim().toLowerCase()
+        passed: understanding.inferredGoal.trim().toLowerCase() !== understanding.explicitGoal.trim().toLowerCase(),
+        severity: "blocking"
       },
       {
         check: "2. Subobjetivos suficientes para ejecutar el plan",
-        passed: goalGraph.subGoals.length >= 3
+        passed: goalGraph.subGoals.length >= 3,
+        severity: "blocking"
       },
       {
-        check: "3. Capacidades específicas de dominio identificadas (más allá de la base genérica)",
-        passed: capabilityPlan.required.length > baselineCapCount
+        check: "3. Capacidades específicas de dominio identificadas (informativo: ninguna materia concreta reconocida no es un fallo del usuario)",
+        passed: capabilityPlan.required.length > baselineCapCount,
+        severity: "info"
       },
       {
         check: "4. La fuente del análisis semántico está declarada (no se ocultan afirmaciones de verificación)",
-        passed: understanding.source === "ai" || understanding.source === "local"
+        passed: understanding.source === "ai" || understanding.source === "local",
+        severity: "blocking"
+      },
+      {
+        check: "5. La petición aporta contexto mínimo para trabajar (no es una única palabra vaga)",
+        passed: wordCount >= 3,
+        severity: "blocking"
       }
     ];
-    const failures = checks.filter(c => !c.passed);
-    return { checks, failures, status: failures.length === 0 ? "VALIDATED" : "WARNING" };
+    const failures = checks.filter(c => !c.passed && c.severity === "blocking");
+    const infoNotes = checks.filter(c => !c.passed && c.severity === "info");
+    return { checks, failures, infoNotes, status: failures.length === 0 ? "VALIDATED" : "WARNING" };
   }
 };
 
-// --- SERIALIZADOR (sin cambios de fondo; añade fuente del análisis para transparencia) ---
+// --- SERIALIZADOR: cada adapter produce un formato realmente distinto ---
+const escXml = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
 const SerializerSystem = {
   serialize: (ir, adapter) => {
     if (!ir) return "ERROR: IR is null";
+    if (adapter === "AKI") return SerializerSystem.buildAKI(ir);
+    if (adapter === "CLAUDE") return SerializerSystem.buildXML(ir);
+    if (adapter === "CHATGPT") return SerializerSystem.buildMarkdown(ir);
+    if (adapter === "LOCAL") return SerializerSystem.buildCompact(ir);
+    return SerializerSystem.buildPlain(ir);
+  },
 
-    if (adapter === "AKI") {
-      return `[AKI EXECUTION CONTRACT — V401 GOAL-DRIVEN]
-TASK_ID: ${ir.requestId}
-ANALYSIS_SOURCE: ${ir.understanding.source}
-EXPLICIT_GOAL: ${ir.understanding.explicitGoal}
-INFERRED_GOAL: ${ir.understanding.inferredGoal}
-CAPABILITIES: ${ir.capabilityPlan.required.join(', ')}`;
-    }
+  // AKI Execution Contract: mismo contenido completo que el resto de adapters,
+  // en su propio estilo de bloques ":: SECCIÓN" + líneas "> dato" (antes solo
+  // exponía 4 campos sueltos y descartaba asunciones, pendientes, subgoals,
+  // fases, DoD y validación).
+  buildAKI: (ir) => {
+    const u = ir.understanding;
+    const assumedDefaults = u.assumedDefaults || {};
+    const assumedLabels = { formato: 'Formato de salida', tono: 'Tono/estilo', audiencia: 'Dirigido a', longitud: 'Extensión', criterios: 'Criterio de éxito' };
+    const assumedStr = Object.keys(assumedDefaults).length
+      ? Object.keys(assumedDefaults).map(k => `> ${assumedLabels[k] || k}: ${assumedDefaults[k]}`).join('\n')
+      : '> ninguna (la petición ya especifica los ingredientes clave)';
+    const pendingStr = (u.ambiguities && u.ambiguities.length)
+      ? u.ambiguities.map(a => `> ${a}`).join('\n')
+      : '> ninguna';
+    const subGoalsStr = ir.goalGraph.subGoals.map(sg => `> [${sg.priority}] ${sg.id}: ${sg.objective}`).join('\n');
+    const phasesStr = ir.executionPlan.phases.map(p => `> ${p.phase}: ${p.objectives.join(' | ') || '(sin objetivos específicos)'}`).join('\n');
+    const dodStr = ir.definitionOfDone.completionCriteria.map(c => `> ${c}`).join('\n');
+    const forbiddenStr = ir.definitionOfDone.forbiddenOutputs.map(f => `> ${f}`).join('\n');
+    const validationStr = ir.validation.checks.map(c => `> [${c.passed ? 'PASS' : (c.severity === 'info' ? 'INFO' : 'FAIL')}] ${c.check}`).join('\n');
+    const passedCount = ir.validation.checks.filter(c => c.passed).length;
 
-    let wrapS = adapter === "CLAUDE" ? "<canonical_execution_contract>\n" : "";
-    let wrapE = adapter === "CLAUDE" ? "\n</canonical_execution_contract>" : "";
+    return `[AKI EXECUTION CONTRACT — V401 GOAL-DRIVEN]
+:: TASK_ID = ${ir.requestId}
+:: STATUS = ${ir.validation.status} (${passedCount}/${ir.validation.checks.length})
+:: ANALYSIS_SOURCE = ${u.source === 'ai' ? 'ai (comprensión semántica real)' : 'local (heurística por reglas — aproximada, revisar antes de confiar del todo)'}
+
+:: EXPLICIT_GOAL
+> ${u.explicitGoal.replace(/\n/g, '\n> ')}
+
+:: INFERRED_GOAL
+> ${u.inferredGoal}
+
+:: DESIRED_OUTCOME
+> ${u.desiredOutcome}
+
+:: USER_PREFERENCES
+> ${u.userPreferences.join(', ') || 'ninguna'}
+
+:: CONSTRAINTS
+> ${u.userConstraints.join(', ') || 'ninguna'}
+
+:: ASSUMED_DEFAULTS (declaradas y editables — no bloquean el resultado)
+${assumedStr}
+
+:: PENDING_QUESTIONS (solo lo que no se puede asumir con seguridad)
+${pendingStr}
+
+:: OUTCOME_CONTRACT
+> success: ${ir.outcomeContract.successDefinition}
+> deliverables: ${ir.outcomeContract.deliverables.join(', ')}
+
+:: SUBGOALS (primary: ${ir.goalGraph.primaryGoal})
+${subGoalsStr}
+
+:: CAPABILITIES
+> ${ir.capabilityPlan.required.join(', ')}
+
+:: EXECUTION_PHASES
+${phasesStr}
+
+:: DEFINITION_OF_DONE
+${dodStr}
+
+:: FORBIDDEN_OUTPUTS
+${forbiddenStr}
+
+:: VALIDATION
+${validationStr}
+
+:: GENERATION_INSTRUCTIONS
+> Aplica ASSUMED_DEFAULTS salvo que el usuario indique lo contrario.
+> Si hay elementos en PENDING_QUESTIONS, pregúntalos primero antes de dar la solución final.
+> Realiza el trabajo intelectual y técnico completo según EXECUTION_PHASES.
+> No te limites a proporcionar enlaces, tiendas o respuestas superficiales.
+> Entrega una solución analizada, razonada y estructurada que resuelva el objetivo real del usuario.`;
+  },
+
+  // Generic Universal Model (Agnostic Baseline): texto plano con separadores, sin marcado de ningún modelo concreto.
+  buildPlain: (ir) => {
+    const u = ir.understanding;
+    const assumedDefaults = u.assumedDefaults || {};
+    const assumedLabels = { formato: 'Formato de salida', tono: 'Tono/estilo', audiencia: 'Dirigido a', longitud: 'Extensión', criterios: 'Criterio de éxito' };
+    const assumedKeys = Object.keys(assumedDefaults);
+    const assumedStr = assumedKeys.length ? assumedKeys.map(k => `• ${assumedLabels[k] || k}: ${assumedDefaults[k]}`).join('\n') : 'Ninguna: la petición ya especifica los ingredientes clave de un prompt eficaz.';
 
     const subGoalsStr = ir.goalGraph.subGoals.map(sg => `- [${sg.priority}] ${sg.id}: ${sg.objective}`).join('\n');
     const capStr = ir.capabilityPlan.required.map(c => `- ${c}`).join('\n');
     const phasesStr = ir.executionPlan.phases.map(p => `• FASE [${p.phase}]: ${p.objectives.join(' | ')}`).join('\n');
     const dodStr = ir.definitionOfDone.completionCriteria.map(c => `✓ ${c}`).join('\n');
-    const validationStr = ir.validation.checks.map(c => `[${c.passed ? 'PASS' : 'FAIL'}] ${c.check}`).join('\n');
+    const validationStr = ir.validation.checks.map(c => `[${c.passed ? 'PASS' : (c.severity === 'info' ? 'INFO' : 'FAIL')}] ${c.check}`).join('\n');
 
-    return `${wrapS}[CANONICAL EXECUTION CONTRACT — ENTERPRISE V401 AI-CORE GOAL-DRIVEN]
+    return `[CANONICAL EXECUTION CONTRACT — ENTERPRISE V401 AI-CORE GOAL-DRIVEN]
 > ARCHITECTURAL DIRECTIVE: Goal-driven reasoning, Capability Planner & Anti-Shallowness Enforcer.
 
 0. ANALYSIS SOURCE (TRANSPARENCIA)
 -----------------------------------
-FUENTE DEL ANÁLISIS SEMÁNTICO: ${ir.understanding.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}
+FUENTE DEL ANÁLISIS SEMÁNTICO: ${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}
 
 1. UNIVERSAL REQUEST UNDERSTANDING
 ----------------------------------
-EXPLICIT GOAL: ${ir.understanding.explicitGoal}
-INFERRED GOAL: ${ir.understanding.inferredGoal}
-DESIRED OUTCOME: ${ir.understanding.desiredOutcome}
-USER PREFERENCES: ${ir.understanding.userPreferences.join(', ') || 'None'}
-CONSTRAINTS: ${ir.understanding.userConstraints.join(', ') || 'None'}
+EXPLICIT GOAL: ${u.explicitGoal}
+INFERRED GOAL: ${u.inferredGoal}
+DESIRED OUTCOME: ${u.desiredOutcome}
+USER PREFERENCES: ${u.userPreferences.join(', ') || 'None'}
+CONSTRAINTS: ${u.userConstraints.join(', ') || 'None'}
 
-1.5. PREGUNTAS PENDIENTES (RESPÓNDELAS PARA UN PROMPT MÁS EFICAZ)
--------------------------------------------------------------------
-${(ir.understanding.ambiguities && ir.understanding.ambiguities.length) ? ir.understanding.ambiguities.map(a => `? ${a}`).join('\n') : 'Ninguna: la petición ya especifica los ingredientes clave de un prompt eficaz.'}
+1.5. ASUNCIONES POR DEFECTO (declaradas y editables — no bloquean el resultado)
+-------------------------------------------------------------------------------
+${assumedStr}
+
+1.6. PREGUNTAS REALMENTE PENDIENTES (solo lo que no se puede asumir con seguridad)
+-------------------------------------------------------------------------------------
+${(u.ambiguities && u.ambiguities.length) ? u.ambiguities.map(a => `? ${a}`).join('\n') : 'Ninguna.'}
 
 2. OUTCOME CONTRACT (DEFINITION OF SUCCESS)
 -------------------------------------------
@@ -614,11 +748,189 @@ ${validationStr}
 
 8. FINAL OUTPUT CONTRACT / GENERATION INSTRUCTIONS
 --------------------------------------------------
-- Si hay preguntas pendientes en la sección 1.5 sin responder, pregúntaselas primero al usuario antes de dar la solución final.
+- Aplica las asunciones por defecto de la sección 1.5 salvo que el usuario indique lo contrario.
+- Si hay preguntas pendientes en la sección 1.6, pregúntalas primero al usuario antes de dar la solución final.
 - Realiza el trabajo intelectual y técnico completo según las fases del plan.
 - No te limites a proporcionar enlaces, tiendas o respuestas superficiales.
-- Entrega una solución analizada, razonada y estructurada que resuelva el objetivo real del usuario.
-${wrapE}`;
+- Entrega una solución analizada, razonada y estructurada que resuelva el objetivo real del usuario.`;
+  },
+
+  // Anthropic Claude: XML real con una etiqueta por sección/elemento (no un simple envoltorio).
+  buildXML: (ir) => {
+    const u = ir.understanding;
+    const assumedDefaults = u.assumedDefaults || {};
+    const assumedXml = Object.keys(assumedDefaults).length
+      ? Object.keys(assumedDefaults).map(k => `    <default key="${escXml(k)}">${escXml(assumedDefaults[k])}</default>`).join('\n')
+      : '    <!-- ninguna: la petición ya especifica los ingredientes clave -->';
+    const pendingXml = (u.ambiguities && u.ambiguities.length)
+      ? u.ambiguities.map(a => `    <question>${escXml(a)}</question>`).join('\n')
+      : '    <!-- ninguna -->';
+    const subGoalsXml = ir.goalGraph.subGoals.map(sg => `    <subgoal id="${sg.id}" priority="${sg.priority}">${escXml(sg.objective)}</subgoal>`).join('\n');
+    const capsXml = ir.capabilityPlan.required.map(c => `    <capability>${escXml(c)}</capability>`).join('\n');
+    const phasesXml = ir.executionPlan.phases.map(p => `    <phase name="${p.phase}">${escXml(p.objectives.join(' | '))}</phase>`).join('\n');
+    const dodXml = ir.definitionOfDone.completionCriteria.map(c => `    <criterion>${escXml(c)}</criterion>`).join('\n');
+    const forbiddenXml = ir.definitionOfDone.forbiddenOutputs.map(f => `      <item>${escXml(f)}</item>`).join('\n');
+    const validationXml = ir.validation.checks.map(c => `    <check passed="${c.passed}" severity="${c.severity}">${escXml(c.check)}</check>`).join('\n');
+
+    return `<canonical_execution_contract task_id="${escXml(ir.requestId)}" status="${ir.validation.status}">
+  <architectural_directive>Goal-driven reasoning, Capability Planner &amp; Anti-Shallowness Enforcer.</architectural_directive>
+
+  <analysis_source method="${u.source}">${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}</analysis_source>
+
+  <request_understanding>
+    <explicit_goal>${escXml(u.explicitGoal)}</explicit_goal>
+    <inferred_goal>${escXml(u.inferredGoal)}</inferred_goal>
+    <desired_outcome>${escXml(u.desiredOutcome)}</desired_outcome>
+    <user_preferences>${escXml(u.userPreferences.join(', ') || 'None')}</user_preferences>
+    <constraints>${escXml(u.userConstraints.join(', ') || 'None')}</constraints>
+  </request_understanding>
+
+  <assumed_defaults note="declaradas y editables — no bloquean el resultado">
+${assumedXml}
+  </assumed_defaults>
+
+  <pending_questions note="solo lo que no se puede asumir con seguridad">
+${pendingXml}
+  </pending_questions>
+
+  <outcome_contract>
+    <success_definition>${escXml(ir.outcomeContract.successDefinition)}</success_definition>
+    <deliverables>${escXml(ir.outcomeContract.deliverables.join(', '))}</deliverables>
+  </outcome_contract>
+
+  <goal_decomposition primary_goal="${escXml(ir.goalGraph.primaryGoal)}">
+${subGoalsXml}
+  </goal_decomposition>
+
+  <capabilities>
+${capsXml}
+  </capabilities>
+
+  <execution_plan>
+${phasesXml}
+  </execution_plan>
+
+  <definition_of_done>
+${dodXml}
+    <forbidden_outputs>
+${forbiddenXml}
+    </forbidden_outputs>
+  </definition_of_done>
+
+  <validation status="${ir.validation.status}">
+${validationXml}
+  </validation>
+
+  <generation_instructions>
+    <instruction>Aplica las asunciones por defecto salvo que el usuario indique lo contrario.</instruction>
+    <instruction>Si hay elementos en pending_questions, pregúntalos primero antes de dar la solución final.</instruction>
+    <instruction>Realiza el trabajo intelectual y técnico completo según las fases del plan.</instruction>
+    <instruction>No te limites a proporcionar enlaces, tiendas o respuestas superficiales.</instruction>
+    <instruction>Entrega una solución analizada, razonada y estructurada que resuelva el objetivo real del usuario.</instruction>
+  </generation_instructions>
+</canonical_execution_contract>`;
+  },
+
+  // OpenAI ChatGPT: Markdown real (encabezados, listas, checklist, cita), no texto plano con guiones.
+  buildMarkdown: (ir) => {
+    const u = ir.understanding;
+    const assumedDefaults = u.assumedDefaults || {};
+    const assumedLabels = { formato: 'Formato de salida', tono: 'Tono/estilo', audiencia: 'Dirigido a', longitud: 'Extensión', criterios: 'Criterio de éxito' };
+    const assumedMd = Object.keys(assumedDefaults).length
+      ? Object.keys(assumedDefaults).map(k => `- **${assumedLabels[k] || k}:** ${assumedDefaults[k]}`).join('\n')
+      : '_Ninguna: la petición ya especifica los ingredientes clave de un prompt eficaz._';
+    const pendingMd = (u.ambiguities && u.ambiguities.length)
+      ? u.ambiguities.map(a => `- [ ] ${a}`).join('\n')
+      : '_Ninguna._';
+    const subGoalsMd = ir.goalGraph.subGoals.map(sg => `- **[${sg.priority}] ${sg.id}** — ${sg.objective}`).join('\n');
+    const capsMd = ir.capabilityPlan.required.map(c => `\`${c}\``).join(', ');
+    const phasesMd = ir.executionPlan.phases.map((p, i) => `${i + 1}. **${p.phase}** — ${p.objectives.join(' | ') || '_(sin objetivos específicos en esta fase)_'}`).join('\n');
+    const dodMd = ir.definitionOfDone.completionCriteria.map(c => `- [x] ${c}`).join('\n');
+    const forbiddenMd = ir.definitionOfDone.forbiddenOutputs.map(f => `- 🚫 ${f}`).join('\n');
+    const validationMd = ir.validation.checks.map(c => `- ${c.passed ? '✅' : (c.severity === 'info' ? 'ℹ️' : '❌')} ${c.check}`).join('\n');
+    const statusIcon = ir.validation.status === 'VALIDATED' ? '✅' : '⚠️';
+
+    return `# Canonical Execution Contract — Enterprise V401 (AI-Core, Goal-Driven)
+> Goal-driven reasoning, Capability Planner & Anti-Shallowness Enforcer.
+
+## 0. Fuente del análisis
+**Fuente del análisis semántico:** ${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}
+
+## 1. Comprensión de la petición
+**Objetivo explícito:**
+> ${u.explicitGoal.replace(/\n/g, '\n> ')}
+
+**Objetivo inferido:** ${u.inferredGoal}
+**Resultado deseado:** ${u.desiredOutcome}
+**Preferencias del usuario:** ${u.userPreferences.join(', ') || 'Ninguna'}
+**Restricciones:** ${u.userConstraints.join(', ') || 'Ninguna'}
+
+### Asunciones por defecto (declaradas y editables — no bloquean el resultado)
+${assumedMd}
+
+### Preguntas realmente pendientes (solo lo que no se puede asumir con seguridad)
+${pendingMd}
+
+## 2. Contrato de resultado (Definition of Success)
+**Definición de éxito:** ${ir.outcomeContract.successDefinition}
+**Entregables esperados:** ${ir.outcomeContract.deliverables.join(', ')}
+
+## 3. Descomposición de objetivos
+**Objetivo primario:** ${ir.goalGraph.primaryGoal}
+
+${subGoalsMd}
+
+## 4. Capacidades requeridas
+${capsMd}
+
+## 5. Plan de ejecución (fases)
+${phasesMd}
+
+## 6. Definition of Done (anti-superficialidad)
+${dodMd}
+
+**Salidas prohibidas:**
+${forbiddenMd}
+
+## 7. Validación adversarial
+**Estado:** ${statusIcon} ${ir.validation.status}
+
+${validationMd}
+
+## 8. Instrucciones finales de generación
+1. Aplica las asunciones por defecto salvo que el usuario indique lo contrario.
+2. Si hay preguntas en "Preguntas realmente pendientes", pregúntalas primero antes de dar la solución final.
+3. Realiza el trabajo intelectual y técnico completo según las fases del plan.
+4. No te limites a proporcionar enlaces, tiendas o respuestas superficiales.
+5. Entrega una solución analizada, razonada y estructurada que resuelva el objetivo real del usuario.`;
+  },
+
+  // Local Model (Compact & Explicit): una línea por campo, sin prosa ni separadores decorativos.
+  buildCompact: (ir) => {
+    const u = ir.understanding;
+    const assumedDefaults = u.assumedDefaults || {};
+    const assumedStr = Object.keys(assumedDefaults).length
+      ? Object.entries(assumedDefaults).map(([k, v]) => `${k}=${v}`).join('; ')
+      : 'ninguna';
+    const pendingStr = (u.ambiguities && u.ambiguities.length) ? u.ambiguities.join(' / ') : 'ninguna';
+    const subGoalsStr = ir.goalGraph.subGoals.map(sg => `${sg.id}(${sg.priority})="${sg.objective}"`).join(' | ');
+    const phasesStr = ir.executionPlan.phases.map(p => p.phase).join('>');
+    const dodStr = ir.definitionOfDone.completionCriteria.join('; ');
+    const passedCount = ir.validation.checks.filter(c => c.passed).length;
+
+    return `TASK[${ir.requestId}] SRC=${u.source} STATUS=${ir.validation.status} (${passedCount}/${ir.validation.checks.length})
+GOAL.explicit="${u.explicitGoal.replace(/\n/g, ' ')}"
+GOAL.inferred="${u.inferredGoal}"
+OUTCOME="${u.desiredOutcome}"
+DEFAULTS: ${assumedStr}
+PENDING: ${pendingStr}
+SUBGOALS: ${subGoalsStr}
+CAPS: ${ir.capabilityPlan.required.join(', ')}
+PHASES: ${phasesStr}
+DOD: ${dodStr}
+FORBIDDEN: ${ir.definitionOfDone.forbiddenOutputs.join(' | ')}
+DELIVERABLES: ${ir.outcomeContract.deliverables.join(', ')}
+INSTRUCTIONS: Aplica DEFAULTS salvo indicación contraria; resuelve PENDING antes de la solución final; ejecuta PHASES por completo; nunca superficial; entrega razonada y estructurada.`;
   }
 };
 
@@ -722,12 +1034,17 @@ const ejecutarTestsV401 = async () => {
       } },
     { id: "T-06", name: "Sin colisión de 'bra' con 'palabra' (fix marcas hardcodeadas)", in: "Necesito una palabra clave para mi proyecto de análisis", assert: r => !r.error && !r.ir.understanding.userPreferences.includes("Bra") },
     { id: "T-07", name: "Validación no es tautológica: falla si no hay capacidades específicas", in: "hola", assert: r => !r.error && r.ir.validation.checks.find(c => c.check.includes("Capacidades específicas")) !== undefined },
-    { id: "T-08", name: "Petición no técnica genera preguntas pendientes (ayuda a usuario sin conocimientos de IA)", in: "Ayúdame a organizar mi semana", assert: r => !r.error && r.ir.understanding.ambiguities.length > 0 },
-    { id: "T-09", name: "Petición ya completa reduce las preguntas sobre formato y tono", in: "Escríbeme un email formal y breve para mi jefe, en formato de lista de puntos, con un tono cercano, como el que le mandé el mes pasado", assert: r => {
+    { id: "T-08", name: "Petición sin ingredientes de prompt genera asunciones por defecto, no preguntas bloqueantes (fix v403: no devuelve el trabajo al usuario)", in: "Ayúdame a organizar mi semana", assert: r => !r.error && Object.keys(r.ir.understanding.assumedDefaults).length > 0 && r.ir.understanding.ambiguities.length === 0 },
+    { id: "T-09", name: "Petición ya completa no genera asunción de formato ni de tono (ya estaban explícitos)", in: "Escríbeme un email formal y breve para mi jefe, en formato de lista de puntos, con un tono cercano, como el que le mandé el mes pasado", assert: r => {
         if (r.error) return false;
-        const a = r.ir.understanding.ambiguities;
-        return !a.some(q => q.startsWith("¿En qué formato")) && !a.some(q => q.startsWith("¿Qué tono"));
-      } }
+        const a = r.ir.understanding.assumedDefaults;
+        return !('formato' in a) && !('tono' in a);
+      } },
+    { id: "T-10", name: "Petición vaga de una palabra da WARNING (motivo honesto: falta de contexto, no falta de dominio)", in: "hola", assert: r => !r.error && r.ir.validation.status === "WARNING" },
+    { id: "T-11", name: "Sin falso positivo de 'local' en 'tienda local' (fix colisión de palabra suelta)", in: "Quiero encontrar una tienda local que venda muebles baratos", assert: r => !r.error && !r.ir.understanding.userConstraints.includes("Funcionalidad offline requerida") },
+    { id: "T-12", name: "Petición fuera del taxonomy fijo (ej. cocina) no da WARNING solo por falta de dominio reconocido", in: "Quiero hacer una tarta de manzana casera para el cumpleaños de mi madre", assert: r => !r.error && r.ir.validation.status === "VALIDATED" },
+    { id: "T-13", name: "Comparativa de compra sin presupuesto sí genera una pregunta realmente pendiente (fix v403: lo que no se puede asumir con seguridad se sigue preguntando)", in: "Compara ollas de dos marcas distintas y dime cuál comprar", assert: r => !r.error && r.ir.understanding.ambiguities.some(a => a.toLowerCase().includes("presupuesto")) },
+    { id: "T-14", name: "Señal de experiencia previa ajusta la asunción de tono a técnico", in: "Soy ingeniero y quiero optimizar el sistema automático del depósito", assert: r => !r.error && r.ir.understanding.assumedDefaults.tono && r.ir.understanding.assumedDefaults.tono.includes("técnico") }
   ];
 
   let passed = 0;
