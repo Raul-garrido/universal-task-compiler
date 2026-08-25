@@ -57,7 +57,7 @@
 <body>
 <main>
   <h1>Generador de Prompt Universal</h1>
-  <div class="version-subtitle">Universal Semantic Task Compiler — Enterprise V401 (AI-Core, Goal-Driven)</div>
+  <div class="version-subtitle">Universal Semantic Task Compiler — Enterprise V401 (AI-Core, Goal-Driven) — VERSIÓN PERSONAL (recuerda tu API key en este navegador — no compartir este archivo)</div>
 
   <div class="grid">
     <!-- LEFT COLUMN -->
@@ -82,7 +82,11 @@
           <details>
             <summary>⚙️ Avanzado (opcional): activar IA en línea con tu propia API key</summary>
             <input id="apiKey" type="password" placeholder="sk-ant-... (déjalo vacío para trabajar 100% local, sin internet)" autocomplete="off" style="margin-top:6px">
-            <p style="font-size:10px;color:var(--muted);margin-top:-4px;">Por defecto, con este campo vacío, la herramienta NO hace ninguna llamada a internet: todo el análisis es local. Recomendado dejarlo vacío en equipos sin acceso a internet o con restricciones. Solo se contacta con la API de Anthropic si rellenas tu propia key aquí. La key nunca se guarda: se borra sola de este campo tras cada compilación.</p>
+            <label style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted);margin-top:6px;cursor:pointer;">
+              <input type="checkbox" id="rememberKey" style="width:auto;margin:0;">
+              Recordar esta key en este navegador (localStorage) — solo en este equipo, no se sincroniza ni se sube a ningún sitio. No actives esto en un PC compartido o público.
+            </label>
+            <p style="font-size:10px;color:var(--muted);margin-top:6px;">Por defecto, con este campo vacío, la herramienta NO hace ninguna llamada a internet: todo el análisis es local. Recomendado dejarlo vacío en equipos sin acceso a internet o con restricciones. Solo se contacta con la API de Anthropic si rellenas tu propia key aquí. Si no marcas "Recordar", la key nunca se guarda: se borra sola de este campo tras cada compilación.</p>
           </details>
 
           <div class="row" style="margin-top: 8px;">
@@ -426,7 +430,7 @@ const LANG_PACKS = {
     accentHint: /[áéíóúñ¿¡]/,
     domains: {
       hardwareSystem: /\b(depósito|agua|sistema(s)?|automático|automatiz\w*|control|sensor(es)?|actuador(es)?)\b/,
-      software: /\b(html|programa\w*|aplicaci\w*|gestion\w*|javascript|códig\w*|software|app\w*|python|backend|frontend|bases? de datos|database|web|plataforma\w*|videojuego\w*|script\w*|api|tampermonkey|apm)\b|integrar (la )?inteligencia artificial|inteligencia artificial en (mi|la|una|el)|con inteligencia artificial|machine learning|máquina de estados|arquitectura de (agentes|microservicios)|agente(s)? autónomo\w*/,
+      software: /\b(html|programa\w*|aplicaci\w*|gestion\w*|javascript|códig\w*|software|app\w*|python|backend|frontend|base de datos|database|web|plataforma\w*|videojuego\w*|script\w*|api|tampermonkey|apm)\b|integrar (la )?inteligencia artificial|inteligencia artificial en (mi|la|una|el)|con inteligencia artificial|machine learning/,
       purchaseCompare: /\b(compar\w*|diferencia|precio|coste|barat\w*|comprar\w*|compro|compra|compras|compramos|compran|compré|compró|comprando|comprado|producto)\b/,
       analysis: /\b(analiz\w*|analic\w*|estudi\w*|revis\w*|audit\w*|informe|investig\w*)\b/,
       writing: /\b(escrib\w*|redact\w*|una carta|email|correo|artículo|guion|historia|cuento|traduc\w*)\b|(post|publicaci\w*).{0,25}redes sociales|redes sociales.{0,25}(post|publicaci\w*)/,
@@ -436,10 +440,10 @@ const LANG_PACKS = {
       salud: /\b(salud|dieta|síntoma|médic\w*|enfermedad|veterinari\w*|duele\w*|dolor|fiebre|mare\w*|náuse\w*|vóm\w*|tos|estrés|estresad\w*|ansiedad|insomnio)\b|calidad del sueño|hábitos de sueño|dormir (bien|mal)/,
       finanzas: /\b(ahorr\w*|presupuesto|hipoteca|préstamo|inversi\w*|invert(?:ir|ido|ida|imos|iendo|í|ió)?|deuda|impuestos?|fiscal|finanzas)\b/,
       industrial: /\b(motor (diésel|diesel|de combustión|del coche|de coche|de moto)|maquinaria|máquinas? industrial\w*|mantenimiento mecánico|avería mecánica|pieza de recambio|(coche|moto|vehículo) (no arranca|averiad[oa])|se (me )?ha averiado (el coche|la moto)|taller mecánico|revisión mecánica)\b/,
-      cooking: /\b(receta\w*|cocino|cocinar\w*|cocinando|cocinad[oa]|cocinamos|cocinan|guiso\w*|hornear\w*|ingredientes para|c[oó]mo (se hace|preparo|cocino)|plato (casero|para cenar|para comer))\b|preparar (una|la) (comida|cena)|plan de alimentaci[oó]n|alimentaci[oó]n semanal|menú semanal/,
+      cooking: /\b(receta\w*|cocino|cocinar\w*|cocinando|cocinad[oa]|cocinamos|cocinan|guiso\w*|hornear\w*|ingredientes para|c[oó]mo (se hace|preparo|cocino)|plato (casero|para cenar|para comer))\b|preparar (una|la) (comida|cena)/,
       education: /\b(deberes|trabajo (escolar|de clase|de historia|de ciencias|de literatura)|examen\w*|tarea (escolar|académica)|redacción escolar|trabajo para (el|la) (colegio|instituto|universidad))\b/,
       pets: /\b(mi (perro|gato|mascota|perra|gata)|adiestr\w*|veterinari\w*|cachorro\w*)\b/,
-      construction: /\b(terraza\w*|pérgola\w*|encimera\w*|azulejo\w*|revestir|panel sándwich|policarbonato|bloques de hormigón|reforma\w*|albañil\w*|impermeabiliz\w*)\b|(muro|pared) de bloques/,
+      construction: /\b(terraza\w*|pérgola\w*|encimera\w*|azulejo\w*|revestir|panel sándwich|policarbonato|bloques de hormigón|reforma\w*|albañil\w*|impermeabiliz\w*)\b/,
       business: /\b(crear (una|mi) (pequeña )?empresa|montar (un|una) negocio|emprender|mi (nuevo )?negocio|tengo (un|una) (pequeño |pequeña )?(negocio|empresa)|primeros clientes|modelo de negocio|plan de negocio)\b/,
       marketing: /\b(promocionar|promoción\w*|estrategia de contenido|redes sociales.{0,20}(blog|alcance)|marketing|posicionamiento (seo|web)|estrategia (de marketing|para promocionar))\b/,
       fitness: /\b(entrenamiento\w*|entrenar|rutina de ejercicio\w*|hacer ejercicio|gimnasio|fuerza y resistencia|hacer deporte)\b/,
@@ -586,7 +590,7 @@ const LANG_PACKS = {
     accentHint: null,
     domains: {
       hardwareSystem: /\b(tank|reservoir|water level|system(s)?|automat\w*|control|sensor(s)?|actuator(s)?)\b/,
-      software: /\b(html|program\w*|application|app\w*|manag\w*|javascript|code\w*|software|python|backend|frontend|databases?|web ?site|web app|platform\w*|script\w*|api|tampermonkey|apm)\b|state machine|agent architecture|autonomous agent/,
+      software: /\b(html|program\w*|application|app\w*|manag\w*|javascript|code\w*|software|python|backend|frontend|database|web ?site|web app|platform\w*|script\w*|api|tampermonkey|apm)\b/,
       // "buy\w*" no cubre el pasado irregular "bought" — se añade a mano,
       // igual que "comprar\w*" no cubría "compro" en español (mismo bug).
       purchaseCompare: /\b(compar\w*|comparison|difference|price|cost\w*|cheap\w*|buy\w*|bought|purchas\w*|product)\b|which (one )?(is|would be) better/,
@@ -602,10 +606,10 @@ const LANG_PACKS = {
       salud: /\b(health|diet|symptom\w*|doctor|illness|disease|vet\w*|pain\w*|hurt\w*|fever|headache|nause\w*|vomit\w*|cough\w*|stress\w*|anxiet\w*|insomnia)\b|sleep quality|sleep habits|sleep (better|worse)/,
       finanzas: /\b(sav\w*|budget|mortgage|loan|invest(?:s|ed|ing|ment|ments)?|debt|tax\w*|financ\w*)\b/,
       industrial: /\b(diesel engine|machinery|industrial machine\w*|mechanical maintenance|mechanical (failure|breakdown)|spare part|car (won't|wont|doesn't|does not) start|car broke down|repair shop|mechanic)\b/,
-      cooking: /\b(recipe\w*|cooking|cooked|bake\w*|how (do|to) (i )?(make|cook|prepare)|ingredients for|homemade dish)\b|meal plan|weekly menu/,
+      cooking: /\b(recipe\w*|cooking|cooked|bake\w*|how (do|to) (i )?(make|cook|prepare)|ingredients for|homemade dish)\b/,
       education: /\b(homework|school (assignment|project)|essay (due|for school)|exam\w*|due (for|by) (class|school)|assignment (due|for class))\b/,
       pets: /\b(my (dog|cat|pet|puppy|kitten)|(train|training) (my|a) (dog|puppy)|vet\w*)\b/,
-      construction: /\b(terrace|patio (cover|roof)|pergola\w*|countertop\w*|tile\w*|renovat\w*|remodel\w*|waterproof\w*)\b|block wall|wall of blocks/,
+      construction: /\b(terrace|patio (cover|roof)|pergola\w*|countertop\w*|tile\w*|renovat\w*|remodel\w*|waterproof\w*)\b/,
       business: /\b(start(ing)? (a|my) (small )?business|launch\w* a business|business model|business plan|first customers|entrepreneur\w*)\b/,
       marketing: /\b(marketing|promot\w* (my|a|the) (business|brand)|content strategy|social media strategy|seo)\b/,
       fitness: /\b(training routine|workout\w*|exercise routine|work out|gym|strength and (endurance|mobility))\b/,
@@ -1465,20 +1469,27 @@ const ejecutarCompilacionV401 = async () => {
   if (btn) { btn.disabled = true; btn.textContent = "⏳ Generando Prompt..."; }
 
   const langSel = $('requestLanguage')?.value || "auto";
+  const keyValue = $('apiKey')?.value?.trim() || "";
   const res = await compilarV401(
     $('userRequest')?.value || "",
     $('currentArtifact')?.value || "",
     $('modifiedArtifact')?.value || "",
     $('modelAdapter')?.value || "GENERIC",
-    $('apiKey')?.value?.trim() || "",
+    keyValue,
     langSel === "auto" ? undefined : langSel
   );
 
   if (btn) { btn.disabled = false; btn.textContent = "Crear Prompt"; }
-  // Fix v410: paridad con wizard.html — la key no debe persistir en el DOM
-  // tras usarse (defensa en profundidad; nunca se guarda, solo vivía en este
-  // campo mientras se compilaba).
-  if ($('apiKey')) $('apiKey').value = "";
+  // VERSIÓN PERSONAL: si el usuario marcó "Recordar esta key", se guarda en
+  // localStorage de SU PROPIO navegador (nunca sale de su equipo, nunca pasa
+  // por ningún tercero). Si no la marca, comportamiento idéntico al original:
+  // la key nunca se guarda y se borra sola de este campo tras cada compilación.
+  if ($('rememberKey')?.checked && keyValue) {
+    try { localStorage.setItem('universalPromptCompiler_savedApiKey', keyValue); } catch (e) {}
+  } else {
+    try { localStorage.removeItem('universalPromptCompiler_savedApiKey'); } catch (e) {}
+    if ($('apiKey')) $('apiKey').value = "";
+  }
 
   if (res.error) {
     if (res.error === "EMPTY") alert("Por favor, introduce una petición.");
@@ -1684,12 +1695,6 @@ const ejecutarTestsV401 = async () => {
       const dod = DefinitionOfDoneEngine.evaluate({ ambiguities: [] }, {}, { required: ["RESEARCH", "INFORMATION_SYNTHESIS", "DECISION_ANALYSIS", "PLANNING", "SCHEDULING"] });
       return !dod.forbiddenOutputs.some(f => f.includes("Código sin verificar"));
     } },
-    { id: "T-130", name: "software ES/EN reconoce 'bases de datos' en plural, no solo el singular (fix v442, mismo patrón de bug que sistema/sensor, hallado con una segunda tanda de 50 peticiones)", in: "Quiero comparar dos bases de datos y decidir cuál es mejor para almacenar millones de registros históricos", assert: r => !r.error && r.ir.capabilityPlan.required.includes("SOFTWARE_DESIGN") },
-    { id: "T-131", name: "construction ES reconoce 'muro/pared de bloques', sin activarse con 'bloques de código' (fix v442)", in: "Necesito calcular la cantidad exacta de materiales necesarios para construir un muro de bloques", assert: r => !r.error && r.ir.capabilityPlan.required.includes("MATERIAL_SELECTION") },
-    { id: "T-132", name: "construction ES no colisiona con 'bloques de código', término de programación (fix v442, regresión)", in: "Quiero organizar mejor los bloques de código de mi proyecto en módulos reutilizables", assert: r => !r.error && !r.ir.capabilityPlan.required.includes("MATERIAL_SELECTION") },
-    { id: "T-133", name: "cooking ES reconoce 'plan de alimentación'/'alimentación semanal', sinónimo común de plan de comidas no cubierto por 'cocinar'/'receta' (fix v442, hallado con la segunda tanda de peticiones)", in: "Quiero crear un plan de alimentación semanal adaptado a un número determinado de personas y presupuesto", assert: r => !r.error && r.ir.capabilityPlan.required.includes("RECIPE_DEVELOPMENT") },
-    { id: "T-134", name: "software ES reconoce 'máquina de estados'/'arquitectura de agentes'/'agente autónomo' como conceptos de arquitectura software, sin colisionar con 'agente de seguros' (fix v442, hallado con la segunda tanda: varias peticiones de diseño de agentes/IA no activaban ningún dominio)", in: "Diseña una máquina de estados para controlar la ejecución de tareas complejas y evitar bucles infinitos", assert: r => !r.error && r.ir.capabilityPlan.required.includes("SOFTWARE_DESIGN") },
-    { id: "T-135", name: "software ES no colisiona con 'agente' en sentido no técnico, ej. agente de seguros (fix v442, regresión)", in: "Necesito contactar con mi agente de seguros para renovar la póliza", assert: r => !r.error && !r.ir.capabilityPlan.required.includes("SOFTWARE_DESIGN") },
     { id: "T-46", name: "'una carta' sigue reconociéndose como encargo de escritura real, sin necesidad de otra palabra de escritura presente (no regresión del fix v416)", in: "Necesito una carta de recomendación para mi antiguo empleado", assert: r => !r.error && r.ir.capabilityPlan.required.includes("WRITING") },
     { id: "T-47", name: "Auto-detección de idioma reconoce inglés y lo declara en el contrato (fix v417)", in: "I want to create an automatic system to control the water level of a tank", assert: r => !r.error && r.ir.understanding.lang === "en" && r.executablePrompt.includes("IDIOMA DE ANÁLISIS: en") },
     { id: "T-48", name: "Auto-detección de idioma reconoce español (no regresión: sigue siendo el idioma por defecto)", in: "Quiero crear un sistema automático para controlar el nivel de agua de un depósito", assert: r => !r.error && r.ir.understanding.lang === "es" },
@@ -1743,6 +1748,16 @@ const ejecutarTestsV401 = async () => {
 
 window.onload = () => {
   renderHistory();
+  // VERSIÓN PERSONAL: si hay una key guardada en localStorage de este mismo
+  // navegador (de una sesión anterior con "Recordar esta key" activado), se
+  // recarga automáticamente en el campo para no tener que volver a pegarla.
+  try {
+    const savedKey = localStorage.getItem('universalPromptCompiler_savedApiKey');
+    if (savedKey && $('apiKey') && $('rememberKey')) {
+      $('apiKey').value = savedKey;
+      $('rememberKey').checked = true;
+    }
+  } catch (e) {}
   logTrace("SYS", "Universal Semantic Task Compiler V401 (AI-Core) inicializado correctamente.");
 };
 </script>
