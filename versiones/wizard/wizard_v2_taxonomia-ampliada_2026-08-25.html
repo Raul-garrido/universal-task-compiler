@@ -1,0 +1,681 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ASISTENTE DE PROMPTS — MODO AUTÓNOMO (WIZARD V2)</title>
+  <style>
+    :root { --bg:#020408; --panel:#0d1117; --line:#30363d; --text:#c9d1d9; --muted:#8b949e; --accent:#58a6ff; --warn:#d29922; --bad:#f85149; --ok:#238636; --ok-text:#3fb950; }
+    * { box-sizing:border-box; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; }
+    body { margin:0; background:var(--bg); color:var(--text); font-size: 13px; line-height: 1.4; padding: 16px; }
+    main { max-width: 3100px; margin: auto; }
+    h1 { font-size: 18px; color: var(--text); border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-top: 0; }
+    h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); border-bottom: 1px solid var(--line); padding-bottom: 4px; margin-top: 0; }
+    .grid { display: grid; grid-template-columns: 480px 1fr; gap: 16px; align-items: start; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; margin-bottom: 12px; }
+    label { display: block; font-weight: 700; font-size: 11px; margin-bottom: 4px; color: var(--accent); margin-top: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .highlight-request-box { background: #0d1b2a; border: 2px solid #1f6feb; border-radius: 8px; padding: 12px; margin-bottom: 14px; box-shadow: 0 0 16px rgba(31, 111, 235, 0.2); }
+    textarea, input, select { width: 100%; background: #010409; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 9px 11px; font-size: 12px; margin-bottom: 6px; transition: border 0.2s; }
+    textarea:focus, input:focus { outline: none; border-color: var(--accent); }
+    textarea { min-height: 70px; resize: vertical; }
+    textarea#userRequest { min-height: 130px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    button { background: var(--ok); color: #fff; border: 1px solid rgba(240,246,252,0.1); border-radius: 6px; padding: 10px 14px; font-weight: 600; cursor: pointer; transition: 0.2s; width: 100%; margin-bottom: 6px; font-size: 13px; }
+    button:hover { background: #2ea043; }
+    button.secondary { background: #21262d; color: var(--text); }
+    button.secondary:hover { background: #30363d; }
+    button.test-btn { background: #1f6feb; border-color: rgba(240,246,252,0.1); }
+    button.test-btn:hover { background: #388bfd; }
+    button.danger { background: transparent; color: var(--bad); border: 1px solid var(--bad); }
+    button.danger:hover { background: rgba(248, 81, 73, 0.1); }
+    details summary { cursor:pointer; color: var(--accent); font-size: 12px; font-weight: 700; margin-top: 10px; padding: 4px 0; }
+    details[open] summary { margin-bottom: 8px; }
+    .advanced-caption { font-size: 10px; color: var(--muted); margin: -2px 0 8px 0; }
+    .adv-field label { margin-top: 8px; }
+    .tabs { display: flex; border-bottom: 1px solid var(--line); margin-bottom: 12px; overflow-x: auto; }
+    .tab { padding: 6px 8px; cursor: pointer; border-bottom: 2px solid transparent; font-weight: 600; color: var(--muted); white-space: nowrap; font-size: 10px; }
+    .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+    pre { background: #010409; border: 1px solid var(--line); padding: 12px; border-radius: 6px; overflow-x: auto; font-family: ui-monospace, monospace; font-size: 11px; line-height: 1.35; white-space: pre-wrap; margin: 0; max-height: 750px; overflow-y: auto; }
+    .trace-log { font-family: monospace; font-size: 10px; background: #010409; border: 1px solid var(--line); border-radius: 6px; padding: 6px; max-height: 150px; overflow-y: auto; color: var(--muted); }
+    .trace-item { margin-bottom: 3px; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 3px; }
+    .badge { display: inline-block; padding: 2px 5px; border-radius: 8px; font-size: 9px; font-weight: 600; border: 1px solid; }
+    .badge.ok { border-color: var(--ok); color: var(--ok-text); }
+    .badge.warn { border-color: var(--warn); color: var(--warn); }
+    .badge.bad { border-color: var(--bad); color: var(--bad); }
+    .badge.info { border-color: var(--accent); color: var(--accent); }
+    .mode-indicator { display: inline-flex; align-items: center; gap: 6px; background: #1f6feb20; border: 1px solid var(--accent); padding: 4px 10px; border-radius: 16px; font-size: 11px; font-weight: bold; color: var(--accent); margin-bottom: 12px; }
+    .pulse { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 6px var(--accent); animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+    .history-item { padding: 8px; border: 1px solid var(--line); border-radius: 6px; margin-bottom: 6px; background: #010409; cursor: pointer; transition: 0.2s; }
+    .history-item:hover { border-color: var(--accent); }
+    .history-meta { font-size: 10px; color: var(--muted); display: flex; justify-content: space-between; margin-bottom: 2px; }
+    .history-snippet { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+    .infer-item { padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; margin-bottom: 6px; background: #010409; font-size: 12px; border-left: 3px solid var(--accent); }
+    .infer-item b { color: var(--accent); }
+  </style>
+</head>
+<body>
+<main>
+  <h1>ASISTENTE DE PROMPTS — MODO AUTÓNOMO (WIZARD V2, versión paralela)</h1>
+
+  <div class="grid">
+    <!-- LEFT COLUMN -->
+    <div>
+      <div class="mode-indicator" id="modeIndicator">
+        <div class="pulse"></div> <span>MODO: AUTÓNOMO — escribe y el asistente completa el resto, 100% local</span>
+      </div>
+
+      <div class="panel">
+        <div class="highlight-request-box">
+          <label for="userRequest" style="color: #58a6ff; margin-top: 0;">📝 Escribe lo que necesitas, como se lo dirías a una persona</label>
+          <textarea id="userRequest" placeholder="Ej: Quiero organizar el cumpleaños de mi hija, o: se me ha roto un grifo y no sé arreglarlo, o: necesito entender cómo funciona una hipoteca...">Quiero crear un sistema automático para controlar el nivel de agua de un depósito.</textarea>
+          <button id="btnGenerate" onclick="generarPrompt()">Generar Prompt</button>
+        </div>
+
+        <details id="advancedDetails">
+          <summary>🔧 Personalizar (opcional) — el asistente ya rellena esto solo</summary>
+          <p class="advanced-caption">Todo esto se completa automáticamente al generar el prompt. Solo tócalo si quieres cambiar algo a mano; lo que edites aquí ya no se sobrescribirá.</p>
+
+          <div class="adv-field">
+            <label for="f_rol">Rol / experto que responde</label>
+            <input id="f_rol" placeholder="Se rellena automáticamente...">
+          </div>
+          <div class="row">
+            <div class="adv-field">
+              <label for="f_formato">Formato de salida</label>
+              <input id="f_formato" placeholder="Automático...">
+            </div>
+            <div class="adv-field">
+              <label for="f_tono">Tono / estilo</label>
+              <input id="f_tono" placeholder="Automático...">
+            </div>
+          </div>
+          <div class="row">
+            <div class="adv-field">
+              <label for="f_audiencia">Dirigido a</label>
+              <input id="f_audiencia" placeholder="Automático...">
+            </div>
+            <div class="adv-field">
+              <label for="f_longitud">Extensión</label>
+              <input id="f_longitud" placeholder="Sin preferencia especial">
+            </div>
+          </div>
+          <div class="adv-field">
+            <label for="f_contexto">Contexto adicional</label>
+            <textarea id="f_contexto" style="min-height:44px" placeholder="Opcional: antecedentes, qué has probado ya..."></textarea>
+          </div>
+          <div class="adv-field">
+            <label for="f_ejemplos">Ejemplos o referencias</label>
+            <textarea id="f_ejemplos" style="min-height:44px" placeholder="Opcional"></textarea>
+          </div>
+          <div class="adv-field">
+            <label for="f_restricciones">Restricciones</label>
+            <textarea id="f_restricciones" style="min-height:44px" placeholder="Opcional: presupuesto, plazo..."></textarea>
+          </div>
+          <div class="adv-field">
+            <label for="f_criterios">Cómo saber que está bien</label>
+            <input id="f_criterios" placeholder="Automático...">
+          </div>
+
+          <label for="modelAdapter">Modelo de IA destino</label>
+          <select id="modelAdapter">
+            <option value="GENERIC">Genérico (cualquier IA)</option>
+            <option value="CLAUDE">Anthropic Claude</option>
+            <option value="CHATGPT">OpenAI ChatGPT</option>
+          </select>
+
+          <details>
+            <summary>⚙️ Muy avanzado: activar IA en línea con tu propia API key</summary>
+            <input id="apiKey" type="password" placeholder="sk-ant-... (déjalo vacío para trabajar 100% local)" autocomplete="off" style="margin-top:6px">
+            <p style="font-size:10px;color:var(--muted);margin-top:-4px;">Con este campo vacío no se hace ninguna llamada a internet. La key nunca se guarda: se borra sola tras generar el prompt.</p>
+          </details>
+        </details>
+
+        <div class="row" style="margin-top: 10px;">
+          <button class="danger" id="btnClearAll" onclick="clearAllInputs()">Borrar Todo</button>
+          <button class="test-btn" id="btnRunTests" onclick="ejecutarTestsWizard()">Ejecutar Tests</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>TRACE LOG</h2>
+        <div class="trace-log" id="traceLog">Asistente listo.</div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div>
+      <div class="panel" style="min-height: 980px;">
+        <div class="tabs">
+          <div class="tab active" onclick="switchTab('tab-final')" id="tab-btn-final">PROMPT FINAL</div>
+          <div class="tab" onclick="switchTab('tab-sugerencias')" id="tab-btn-sugerencias">QUÉ HEMOS DETECTADO</div>
+          <div class="tab" onclick="switchTab('tab-avanzado')" id="tab-btn-avanzado">VISTA TÉCNICA (AVANZADO)</div>
+          <div class="tab" onclick="switchTab('tab-history')" id="tab-btn-history">HISTORIAL</div>
+          <div class="tab" onclick="switchTab('tab-tests')" id="tab-btn-tests">TESTS</div>
+        </div>
+
+        <div id="tab-final">
+          <div class="row" style="margin-bottom: 8px;">
+            <button class="secondary" onclick="copyContent('finalPromptView')" style="border-color: var(--accent); color: var(--accent);">Copiar Prompt</button>
+          </div>
+          <pre id="finalPromptView">Escribe tu petición a la izquierda y pulsa "Generar Prompt". También se genera solo mientras escribes.</pre>
+        </div>
+
+        <div id="tab-sugerencias" style="display: none;">
+          <p style="font-size:11px;color:var(--muted);margin-top:0;">Así ha interpretado el asistente tu petición. Si algo no encaja, ajústalo en "Personalizar".</p>
+          <div id="suggestionsList">Genera un prompt para ver qué se ha detectado.</div>
+        </div>
+
+        <div id="tab-avanzado" style="display: none;">
+          <p style="font-size:11px;color:var(--muted);margin-top:0;">Análisis interno del asistente. No hace falta mirarlo para usar la herramienta.</p>
+          <pre id="advancedView">Genera el prompt para ver el análisis técnico.</pre>
+        </div>
+
+        <div id="tab-history" style="display: none;">
+           <div class="row" style="margin-bottom: 8px;">
+            <button class="danger" onclick="clearHistory()">Limpiar Historial</button>
+          </div>
+          <div id="historyList">Historial vacío.</div>
+        </div>
+
+        <div id="tab-tests" style="display: none;">
+          <pre id="testResults">Pulsa "Ejecutar Tests" para verificar el asistente.</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+/**
+ * ASISTENTE DE PROMPTS — WIZARD V2 (AUTÓNOMO)
+ *
+ * Reescritura tras probar V1: el usuario reportó que pedir 7-8 campos antes
+ * de dar nada a cambio resultaba "lioso" y contradecía el objetivo (alguien
+ * SIN conocimientos escribe su petición tal cual la piensa, sin trabajo
+ * añadido). V2 invierte el flujo: un único campo de texto + botón. Todo lo
+ * demás (rol/experto, tono, formato, audiencia, criterio de éxito) se infiere
+ * de forma autónoma. Los campos siguen existiendo pero ocultos detrás de
+ * "Personalizar (opcional)", ya rellenados, solo para quien quiera ajustar.
+ *
+ * Cómo se infiere el rol sin API key: una taxonomía amplia de materias
+ * (bricolaje, software, cocina, salud, finanzas, legal, viajes, educación,
+ * escritura, compras, carrera, jardín, mascotas, deporte, negocio,
+ * creatividad...) puntuada por nº de coincidencias de palabras clave por
+ * categoría — la de mayor puntuación gana; si ninguna puntúa, se usa un rol
+ * genérico polivalente. Nunca se inventa un valor a partir de una sola
+ * palabra suelta (la lección del bug "Bra"/"palabra" de v400): cada
+ * categoría requiere que al menos una de sus expresiones (muchas de varias
+ * palabras) aparezca.
+ *
+ * Tono/audiencia NO se "detectan": se asignan por defecto pensando en que
+ * quien escribe no tiene conocimientos del tema (el objetivo del proyecto),
+ * y solo cambian a un registro más técnico si el propio texto señala
+ * explícitamente que el usuario ya es experto ("soy ingeniero", "a nivel
+ * técnico"...).
+ */
+
+const $ = id => document.getElementById(id);
+let traceHistory = [];
+const STORAGE_KEY = 'utc_wizard_v2_history';
+const touchedFields = new Set(); // campos que el usuario ha editado a mano en "Personalizar"
+
+const logTrace = (stage, message, status = 'ok') => {
+  const ts = new Date().toISOString().substring(11, 23);
+  const badgeClass = status === 'ok' ? 'ok' : (status === 'warn' ? 'warn' : (status === 'info' ? 'info' : 'bad'));
+  traceHistory.push(`<div class="trace-item"><span class="badge ${badgeClass}">${stage}</span> [${ts}] ${escapeHTML(message)}</div>`);
+  const logEl = $('traceLog');
+  if (logEl) { logEl.innerHTML = traceHistory.join(''); logEl.scrollTop = logEl.scrollHeight; }
+};
+
+const escapeHTML = str => String(str).replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+
+const switchTab = tabId => {
+  ['tab-final', 'tab-sugerencias', 'tab-avanzado', 'tab-history', 'tab-tests'].forEach(id => {
+    const el = $(id);
+    if (el) el.style.display = (id === tabId ? 'block' : 'none');
+    const btn = $(`tab-btn-${id.split('-')[1]}`);
+    if (btn) btn.classList.toggle('active', id === tabId);
+  });
+  if (tabId === 'tab-history') renderHistory();
+};
+
+const copyContent = async elementId => {
+  try { await navigator.clipboard.writeText($(elementId)?.textContent || ""); alert('Copiado al portapapeles.'); }
+  catch(e) { alert("Error al copiar al portapapeles"); }
+};
+
+const ADV_FIELD_IDS = ['f_rol','f_contexto','f_formato','f_tono','f_audiencia','f_longitud','f_ejemplos','f_restricciones','f_criterios'];
+const clearAllInputs = () => {
+  if (confirm("¿Borrar la petición y todo lo personalizado?")) {
+    if ($('userRequest')) $('userRequest').value = "";
+    ADV_FIELD_IDS.forEach(id => { if ($(id)) $(id).value = ""; });
+    touchedFields.clear();
+    if ($('finalPromptView')) $('finalPromptView').textContent = 'Escribe tu petición a la izquierda y pulsa "Generar Prompt".';
+    logTrace("SYS", "Todo restablecido.", "info");
+  }
+};
+
+// --- Historial ---
+const saveToHistory = record => {
+  try {
+    const history = getHistory();
+    history.unshift(record);
+    if (history.length > 20) history.pop();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+  } catch (e) {}
+};
+const getHistory = () => {
+  try { const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); return Array.isArray(data) ? data : []; }
+  catch (e) { return []; }
+};
+const clearHistory = () => {
+  if (confirm("¿Borrar historial?")) { try { localStorage.removeItem(STORAGE_KEY); } catch(e) {} renderHistory(); logTrace("SYS", "Historial borrado.", "info"); }
+};
+const renderHistory = () => {
+  const history = getHistory();
+  const listEl = $('historyList');
+  if (!listEl) return;
+  listEl.innerHTML = history.length === 0 ? '<p style="color:var(--muted); font-size:11px;">Historial vacío.</p>' :
+    history.map((item, i) => `
+      <div class="history-item" onclick="loadFromHistory(${i})">
+        <div class="history-meta"><span>${new Date(item.timestamp || Date.now()).toLocaleString()}</span></div>
+        <div class="history-snippet">${escapeHTML(item.tarea || '')}</div>
+      </div>`).join('');
+};
+const loadFromHistory = i => {
+  const item = getHistory()[i];
+  if (!item) return;
+  if ($('userRequest')) $('userRequest').value = item.tarea || "";
+  if ($('finalPromptView')) $('finalPromptView').textContent = item.finalPrompt || "";
+  switchTab('tab-final');
+};
+
+// ==========================================
+// TAXONOMÍA DE ROLES — el corazón del modo autónomo.
+// Cada categoría puntúa por nº de expresiones que coinciden (no una sola
+// palabra suelta), aditivo entre categorías, gana la de mayor puntuación.
+// ==========================================
+const ROLE_TAXONOMY = [
+  { id: 'bricolaje', label: 'bricolaje / reparaciones del hogar', role: 'un técnico en bricolaje y reparaciones del hogar, con experiencia práctica',
+    keywords: [/fontaner\w*/, /\bgrifo\b/, /tubería/, /electricist\w*/, /\benchufe\b/, /avería/, /repara\w*/, /bricolaje/, /azulejo/, /gotera/, /persiana/, /cerradura/, /pintar (la |una )?pared/] },
+  { id: 'automatizacion', label: 'sistemas / automatización / electrónica', role: 'un ingeniero en sistemas de control y automatización',
+    keywords: [/depósito/, /\bsensor\b/, /actuador/, /automátic\w*/, /arduino/, /circuito/, /electrónic\w*/, /domótica/] },
+  { id: 'software', label: 'programación / software', role: 'un ingeniero de software con experiencia',
+    keywords: [/programa\w*/, /aplicación/, /\bapp\b/, /\bcódigo\b/, /javascript/, /\bhtml\b/, /\bpython\b/, /página web/, /base de datos/, /\bsoftware\b/] },
+  { id: 'cocina', label: 'cocina / recetas', role: 'un cocinero profesional',
+    keywords: [/receta/, /cocinar/, /\btarta\b/, /\bplato\b/, /ingrediente/, /\bcena\b/, /\bcomida\b/, /\bhorno\b/] },
+  { id: 'salud', label: 'salud / bienestar', role: 'un asesor de bienestar general (para cualquier tema de salud importante, consulta siempre a un profesional sanitario)',
+    keywords: [/\bsalud\b/, /\bdieta\b/, /ejercicio/, /dormir/, /estrés/, /bienestar/, /síntoma/, /\bdolor\b/] },
+  { id: 'finanzas', label: 'finanzas personales / fiscalidad / seguros', role: 'un asesor financiero personal',
+    keywords: [/ahorrar/, /presupuesto/, /hipoteca/, /préstamo/, /inversión/, /\bdeuda\b/, /\bbanco\b/, /finanzas/,
+      /\bseguro de (coche|hogar|vida|salud)\b/, /declaración de la renta/, /\bautónomo\b/, /\bimpuestos\b/, /\bhacienda\b/] },
+  { id: 'legal', label: 'legal', role: 'un asesor legal a nivel orientativo (no sustituye a un abogado colegiado)',
+    keywords: [/contrato/, /demanda/, /alquiler/, /despido/, /\blegal\b/, /\bley\b/, /derechos/] },
+  { id: 'viajes_eventos', label: 'viajes / eventos / organización', role: 'un organizador de eventos y viajes experto',
+    keywords: [/\bviaje\b/, /itinerario/, /\bvuelo\b/, /\bhotel\b/, /\bevento\b/, /\bfiesta\b/, /cumpleaños/, /\bboda\b/, /organiz\w*/] },
+  // Fix: se retira "aprend\w*" suelto — es tan genérico que ganaba empates
+  // contra categorías más específicas (p.ej. "aprender a coser" caía en
+  // educación en vez de manualidades). Las peticiones de aprender un tema
+  // concreto ya las capturan las categorías específicas (música, idiomas
+  // dentro de esta misma categoría, cocina...); educación se queda con
+  // señales de estudio/curiosidad genuinamente propias.
+  { id: 'educacion', label: 'educación / estudio / ciencia / idiomas / cultura', role: 'un profesor que explica con paciencia y ejemplos sencillos',
+    keywords: [/estudiar/, /\bexamen\b/, /explic\w*/, /entender/, /universidad/, /\bcurso\b/, /asignatura/,
+      /resolver (un problema|una ecuación)/, /\becuación\b/, /\bfísica\b/, /\bquímica\b/, /\bbiología\b/, /por qué (pasa|ocurre|sucede)/,
+      /\bhistoria de\b/, /historia universal/, /cultura general/, /\bcivilización\b/,
+      /aprender (inglés|francés|alemán|italiano|portugués|chino|japonés)/, /hablar (inglés|francés|alemán|italiano)/, /\bidioma\b/, /traducir/, /traducción/, /\bgramática\b/, /vocabulario/, /pronunciación/] },
+  { id: 'escritura', label: 'redacción / escritura', role: 'un editor y redactor profesional',
+    keywords: [/escrib\w*/, /redact\w*/, /\bcarta\b/, /\bemail\b/, /\bcorreo\b/, /artículo/, /\bguion\b/, /currículum/, /\bcv\b/] },
+  // Fix: se retira "mejor" suelta — colisionaba con cualquier petición que
+  // usara esa palabra sin relación con comprar (mismo tipo de bug que "local").
+  { id: 'compras', label: 'compras / comparativas', role: 'un asesor de compras que compara opciones con criterios objetivos',
+    keywords: [/comprar/, /compar\w*/, /\bprecio\b/, /\bproducto\b/] },
+  { id: 'carrera', label: 'carrera profesional', role: 'un coach de carrera profesional',
+    keywords: [/entrevista de trabajo/, /currículum/, /\bempleo\b/, /carrera profesional/, /mi jefe/, /compañeros de trabajo/] },
+  { id: 'jardin', label: 'jardinería', role: 'un experto en jardinería y cuidado de plantas',
+    keywords: [/\bplanta\b/, /jardín/, /huerto/, /\briego\b/] },
+  { id: 'mascotas', label: 'mascotas', role: 'un experto en cuidado de mascotas (para temas de salud del animal, consulta a un veterinario)',
+    keywords: [/\bperro\b/, /\bgato\b/, /mascota/, /veterinari\w*/] },
+  { id: 'deporte', label: 'deporte / fitness', role: 'un entrenador personal',
+    keywords: [/entrenar/, /gimnasio/, /\bcorrer\b/, /músculo/, /fitness/] },
+  { id: 'negocio', label: 'negocio / emprendimiento', role: 'un asesor de negocio y estrategia',
+    keywords: [/\bnegocio\b/, /\bempresa\b/, /emprend\w*/, /marketing/, /\bventas\b/] },
+  { id: 'creatividad', label: 'creatividad / arte', role: 'un mentor creativo',
+    keywords: [/dibujar/, /pintar un cuadro/, /composición musical/, /diseño gráfico/, /creativ\w*/] },
+  { id: 'soporte_tecnico', label: 'soporte informático / dispositivos', role: 'un técnico de soporte informático que resuelve problemas de dispositivos y conexión paso a paso',
+    keywords: [/\bwifi\b/, /\brouter\b/, /impresora/, /ordenador no (arranca|enciende|funciona)/, /móvil (no funciona|se ha roto|va lento)/, /configurar (el )?(router|wifi|correo)/, /actualizar (el )?(móvil|ordenador|sistema)/, /virus (en el|del) (ordenador|móvil)/, /contraseña (olvidada|perdida)/] },
+  { id: 'moda_estilo', label: 'moda / estilo personal', role: 'un asesor de imagen y estilo personal',
+    keywords: [/qué (ropa|me pongo)/, /combinar ropa/, /\blook\b/, /vestir/, /\barmario\b/, /\bmoda\b/] },
+  { id: 'belleza', label: 'belleza / cuidado personal', role: 'un experto en belleza y cuidado personal',
+    keywords: [/maquillaje/, /cuidado de la piel/, /rutina facial/, /peinado/, /cuidado del pelo/, /\bpiel\b/] },
+  { id: 'musica', label: 'música', role: 'un profesor de música con experiencia',
+    keywords: [/tocar (la guitarra|el piano|un instrumento)/, /aprender (a cantar|solfeo|música)/, /componer una canción/, /\bacordes\b/] },
+  { id: 'fotografia', label: 'fotografía', role: 'un fotógrafo profesional',
+    keywords: [/\bfotografía\b/, /\bfotos\b/, /\bcámara\b/, /fotografiar/] },
+  { id: 'automocion', label: 'automoción / coches', role: 'un mecánico de coches experto',
+    keywords: [/\bcoche\b/, /\bmotor\b/, /\bneumático\b/, /\bitv\b/, /avería (del|en el) coche/, /revisión del coche/, /aceite del motor/] },
+  { id: 'decoracion', label: 'decoración / interiorismo', role: 'un decorador de interiores',
+    keywords: [/decorar (la |mi |el )?(casa|salón|habitación|cuarto|piso)/, /interiorismo/, /muebles para/, /redecorar/] },
+  { id: 'manualidades', label: 'manualidades / costura', role: 'un experto en manualidades y costura',
+    keywords: [/manualidades/, /\bcoser\b/, /\bcostura\b/, /\btejer\b/, /punto de cruz/, /hacer a mano/] },
+  { id: 'crianza', label: 'crianza / hijos', role: 'un experto en crianza y desarrollo infantil',
+    keywords: [/\bmi hijo\b/, /\bmi hija\b/, /\bmis hijos\b/, /\bbebé\b/, /\bcriar\b/, /\bcrianza\b/, /educar a (mi|un) (hijo|niño)/, /\bberrinche\b/, /\brabieta\b/] },
+  { id: 'psicologia_relaciones', label: 'relaciones personales / desarrollo personal', role: 'un asesor en relaciones personales y desarrollo personal (esto no sustituye a terapia profesional si la necesitas)',
+    keywords: [/\bmi pareja\b/, /\bmi novio\b/, /\bmi novia\b/, /discutir con/, /\bruptura\b/, /autoestima/, /desarrollo personal/, /relación de pareja/] },
+  { id: 'tramites_administrativos', label: 'trámites / administración pública', role: 'un asesor en trámites y administración pública',
+    keywords: [/empadronamiento/, /\bdni\b/, /\bnie\b/, /cita previa/, /solicitar (una )?subvención/, /trámite (con|de) (hacienda|la seguridad social|el ayuntamiento)/] },
+  { id: 'sostenibilidad', label: 'sostenibilidad / medio ambiente', role: 'un asesor en sostenibilidad y medio ambiente',
+    keywords: [/\breciclar\b/, /\breciclaje\b/, /ahorrar energía/, /huella de carbono/, /sostenibilidad/, /reducir (el )?plástico/] },
+  { id: 'videojuegos', label: 'videojuegos', role: 'un experto en videojuegos',
+    keywords: [/videojuego/, /pasar (de |el )?nivel/, /\bconsola\b/, /jugar a/] },
+  { id: 'espiritualidad', label: 'espiritualidad / religión', role: 'un guía en temas de espiritualidad y religión, respetuoso con distintas creencias',
+    keywords: [/espiritualidad/, /\bbiblia\b/, /\bcorán\b/, /\borar\b/, /\boración\b/, /fe religiosa/, /\breligión\b/, /religios\w*/] }
+];
+
+const EXPERT_SIGNAL = /\b(soy (programador\w*|ingenier\w*|médic\w*|abogad\w*|contable|electricista|fontaner\w*|profesional del sector))\b|nivel técnico|a nivel avanzado|para un experto|en profundidad técnica|ya tengo conocimientos (previos|del tema|de esto)/;
+
+function inferRoleFromText(l) {
+  let best = null, bestScore = 0;
+  for (const cat of ROLE_TAXONOMY) {
+    const score = cat.keywords.filter(rx => rx.test(l)).length;
+    if (score > bestScore) { bestScore = score; best = cat; }
+  }
+  return best; // null si ninguna categoría coincide
+}
+
+// ==========================================
+// INFERENCIA AUTÓNOMA — rellena rol/tono/formato/audiencia/criterios sin
+// preguntar nada. Restricciones/ejemplos/contexto/longitud se dejan vacíos
+// por defecto (no se inventan), el usuario los añade en "Personalizar" si
+// quiere, sin que sea necesario para obtener un prompt completo y útil.
+// ==========================================
+function autoInferFields(tarea) {
+  const l = tarea.toLowerCase();
+  const matched = inferRoleFromText(l);
+  const role = matched ? matched.role : 'un asesor experto y polivalente, capaz de abordar cualquier tema con rigor y sentido común';
+  const isExpert = EXPERT_SIGNAL.test(l);
+
+  const tono = isExpert
+    ? 'técnico y preciso; no hace falta que expliques los conceptos básicos'
+    : 'claro, cercano y sin tecnicismos innecesarios; si usas algún término técnico, explícalo brevemente';
+  const audiencia = isExpert
+    ? 'alguien con conocimientos previos del tema'
+    : 'alguien sin conocimientos previos del tema';
+  const formato = 'organizado en pasos o puntos claros, fácil de seguir';
+  const criterios = 'que sea accionable (pasos concretos, no solo teoría), que expliques brevemente el porqué de cada recomendación, y que si te falta información importante para ayudarme bien, me la pidas antes de darme una respuesta incompleta';
+
+  return { role, tono, audiencia, formato, criterios, matchedCategory: matched, isExpert };
+}
+
+// ==========================================
+// MOTOR AVANZADO (opcional): mismo tipo de análisis que index.html, para
+// quien quiera ver el desglose técnico en la pestaña "VISTA TÉCNICA".
+// ==========================================
+function buildAdvancedAnalysis(tarea) {
+  const l = tarea.toLowerCase();
+  const wordCount = tarea.trim().split(/\s+/).filter(Boolean).length;
+  const inference = autoInferFields(tarea);
+  const checks = [
+    { check: "La petición aporta contexto mínimo (no es una sola palabra vaga)", passed: wordCount >= 3 },
+    { check: "Se ha podido asignar un rol/experto (de una categoría reconocida o el genérico polivalente)", passed: true }
+  ];
+  const failures = checks.filter(c => !c.passed);
+  return { wordCount, inference, checks, status: failures.length === 0 ? "VALIDATED" : "WARNING" };
+}
+
+// ==========================================
+// COMPILADOR DEL PROMPT FINAL — usa lo que hay en los campos (auto-rellenados
+// o editados a mano); las líneas vacías se omiten, nunca se inventa contenido.
+// ==========================================
+function readFields() {
+  return {
+    tarea: $('userRequest')?.value.trim() || '',
+    rol: $('f_rol')?.value.trim() || '',
+    contexto: $('f_contexto')?.value.trim() || '',
+    formato: $('f_formato')?.value.trim() || '',
+    tono: $('f_tono')?.value.trim() || '',
+    audiencia: $('f_audiencia')?.value.trim() || '',
+    longitud: $('f_longitud')?.value.trim() || '',
+    ejemplos: $('f_ejemplos')?.value.trim() || '',
+    restricciones: $('f_restricciones')?.value.trim() || '',
+    criterios: $('f_criterios')?.value.trim() || '',
+    adapter: $('modelAdapter')?.value || 'GENERIC'
+  };
+}
+
+function buildFinalPrompt(fields) {
+  if (!fields.tarea) return null;
+  const lines = [];
+  if (fields.rol) lines.push(`Actúa como ${fields.rol}.`);
+  lines.push(fields.tarea);
+  if (fields.contexto) lines.push(`\nContexto: ${fields.contexto}`);
+
+  const specs = [];
+  if (fields.formato) specs.push(`- Formato de salida: ${fields.formato}`);
+  if (fields.tono) specs.push(`- Tono/estilo: ${fields.tono}`);
+  if (fields.audiencia) specs.push(`- Dirigido a: ${fields.audiencia}`);
+  if (fields.longitud) specs.push(`- Extensión: ${fields.longitud}`);
+  if (fields.ejemplos) specs.push(`- Ejemplos o referencias: ${fields.ejemplos}`);
+  if (fields.restricciones) specs.push(`- Restricciones: ${fields.restricciones}`);
+  if (fields.criterios) specs.push(`- Esto estará bien hecho si: ${fields.criterios}`);
+  if (specs.length) lines.push(`\nTen en cuenta:\n${specs.join('\n')}`);
+
+  lines.push(`\nSi necesitas más información antes de responder con la mejor calidad posible, pregúntamela primero.`);
+
+  let body = lines.join('\n');
+  if (fields.adapter === 'CLAUDE') body = `<prompt>\n${body}\n</prompt>`;
+  else if (fields.adapter === 'CHATGPT') body = `### Prompt\n\n${body}`;
+  return body;
+}
+
+// --- IA opcional (idéntica política de seguridad: cero red sin key, se borra tras usarla) ---
+async function aiEnrich(tarea, apiKey) {
+  const headers = { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" };
+  const sys = `Devuelve EXCLUSIVAMENTE un JSON {"role":"...","tono":"...","formato":"...","audiencia":"..."} sugiriendo el mejor rol de experto y estilo para responder a esta petición, de cualquier materia.`;
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST", headers,
+    body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 500, system: sys, messages: [{ role: "user", content: tarea }] })
+  });
+  if (!response.ok) throw new Error("API_ERROR_" + response.status);
+  const data = await response.json();
+  const text = (data.content || []).map(b => b.text || "").join("").trim();
+  const clean = text.replace(/^```json\s*|^```\s*|```$/g, "").trim();
+  return JSON.parse(clean);
+}
+
+// --- Aplica la inferencia autónoma a los campos, sin pisar lo que el usuario ya haya tocado a mano ---
+function applyInference(inference) {
+  const setIfUntouched = (id, value) => { if (!touchedFields.has(id) && $(id)) $(id).value = value; };
+  setIfUntouched('f_rol', inference.role);
+  setIfUntouched('f_tono', inference.tono);
+  setIfUntouched('f_audiencia', inference.audiencia);
+  setIfUntouched('f_formato', inference.formato);
+  setIfUntouched('f_criterios', inference.criterios);
+}
+
+// --- Pipeline principal ---
+const generarPrompt = async () => {
+  traceHistory = [];
+  logTrace("SYS", "Generando prompt...");
+  const tarea = $('userRequest')?.value.trim() || '';
+  const finalPromptEl = $('finalPromptView');
+
+  if (!tarea) {
+    if (finalPromptEl) finalPromptEl.textContent = 'Escribe primero tu petición en el campo de arriba.';
+    logTrace("ERR", "Petición vacía.", "bad");
+    return;
+  }
+
+  const inference = autoInferFields(tarea);
+  applyInference(inference);
+  logTrace("INTELLIGENCE", `Rol asignado: ${inference.matchedCategory ? inference.matchedCategory.label : 'genérico (sin materia concreta reconocida)'}.`, "info");
+
+  const apiKey = $('apiKey')?.value?.trim() || "";
+  let source = "local";
+  if (apiKey) {
+    try {
+      await aiEnrich(tarea, apiKey);
+      source = "ai";
+      logTrace("INTELLIGENCE", "Enriquecimiento por IA disponible (análisis avanzado).", "ok");
+    } catch (e) {
+      logTrace("INTELLIGENCE", `IA no disponible (${e.message}). Usando inferencia local.`, "warn");
+    } finally {
+      $('apiKey').value = ""; // se borra tras cada uso, defensa en profundidad
+    }
+  } else {
+    logTrace("INTELLIGENCE", "Inferencia local (sin API key, sin conexión a internet).", "info");
+  }
+
+  const fields = readFields();
+  const finalPrompt = buildFinalPrompt(fields);
+  if (finalPromptEl) finalPromptEl.textContent = finalPrompt;
+
+  const advanced = buildAdvancedAnalysis(tarea);
+  if ($('advancedView')) $('advancedView').textContent = JSON.stringify({ source, ...advanced }, null, 2);
+
+  const suggEl = $('suggestionsList');
+  if (suggEl) {
+    const catLabel = inference.matchedCategory ? inference.matchedCategory.label : 'ninguna materia concreta reconocida (se usa un rol genérico polivalente)';
+    suggEl.innerHTML = `
+      <div class="infer-item"><b>Materia detectada:</b> ${escapeHTML(catLabel)}</div>
+      <div class="infer-item"><b>Rol asignado:</b> ${escapeHTML(fields.rol)}</div>
+      <div class="infer-item"><b>Tono:</b> ${escapeHTML(fields.tono)} ${inference.isExpert ? '(detectamos que ya tienes conocimientos del tema)' : '(por defecto, pensado para quien no conoce el tema)'}</div>
+      <div class="infer-item"><b>Dirigido a:</b> ${escapeHTML(fields.audiencia)}</div>
+      <div class="infer-item"><b>Formato:</b> ${escapeHTML(fields.formato)}</div>
+      <div class="infer-item"><b>Criterio de éxito:</b> ${escapeHTML(fields.criterios)}</div>
+      <div class="infer-item">Todo esto es editable en "Personalizar (opcional)" si quieres cambiar algo.</div>
+    `;
+  }
+
+  saveToHistory({ timestamp: Date.now(), tarea, finalPrompt });
+  logTrace("SYS", "Prompt generado.", "ok");
+  switchTab('tab-final');
+};
+
+// Marca como "tocado" un campo avanzado cuando el usuario lo edita a mano,
+// para que la próxima inferencia automática no lo sobrescriba.
+ADV_FIELD_IDS.forEach(id => {
+  const el = $(id);
+  if (!el) return;
+  el.addEventListener('input', () => touchedFields.add(id));
+});
+
+// Vista previa en vivo: mientras escribes la petición (o editas algo en
+// "Personalizar"), se regenera solo, sin necesidad de pulsar el botón.
+let liveTimer = null;
+const scheduleAutoGenerate = () => {
+  clearTimeout(liveTimer);
+  liveTimer = setTimeout(() => { if ($('userRequest')?.value.trim()) generarPrompt(); }, 600);
+};
+$('userRequest')?.addEventListener('input', scheduleAutoGenerate);
+ADV_FIELD_IDS.concat(['modelAdapter']).forEach(id => {
+  const el = $(id);
+  if (!el) return;
+  el.addEventListener('input', () => {
+    if (!$('userRequest')?.value.trim()) return;
+    clearTimeout(liveTimer);
+    liveTimer = setTimeout(() => {
+      const fields = readFields();
+      const prompt = buildFinalPrompt(fields);
+      if (prompt && $('finalPromptView')) $('finalPromptView').textContent = prompt;
+    }, 400);
+  });
+});
+
+// ==========================================
+// TEST FRAMEWORK
+// ==========================================
+const ejecutarTestsWizard = async () => {
+  switchTab('tab-tests');
+  let out = "=================================================\nTEST FRAMEWORK — WIZARD V2 (AUTÓNOMO)\n=================================================\n\n";
+
+  const tests = [
+    { id: "T-01", name: "Sin tarea: buildFinalPrompt devuelve null", run: () => buildFinalPrompt({ tarea: '', adapter: 'GENERIC' }) === null },
+    { id: "T-02", name: "Rol inferido para bricolaje ('se me ha roto un grifo')", run: () => {
+        const inf = autoInferFields('Se me ha roto un grifo y no sé arreglarlo');
+        return inf.matchedCategory && inf.matchedCategory.id === 'bricolaje';
+      } },
+    { id: "T-03", name: "Rol inferido para cocina ('receta de tarta')", run: () => {
+        const inf = autoInferFields('Necesito una receta de tarta de manzana para el postre');
+        return inf.matchedCategory && inf.matchedCategory.id === 'cocina';
+      } },
+    { id: "T-04", name: "Rol genérico cuando ninguna categoría coincide", run: () => {
+        const inf = autoInferFields('Quiero que me des tu opinión sobre esto');
+        return inf.matchedCategory === null && inf.role.includes('polivalente');
+      } },
+    { id: "T-05", name: "Señal de experto cambia el tono a técnico", run: () => {
+        const inf = autoInferFields('Soy ingeniero y quiero optimizar este sistema');
+        return inf.isExpert === true && inf.tono.includes('técnico');
+      } },
+    { id: "T-06", name: "Sin señal de experto, tono por defecto es sencillo (objetivo del proyecto)", run: () => {
+        const inf = autoInferFields('Quiero organizar una fiesta de cumpleaños');
+        return inf.isExpert === false && inf.tono.includes('sin tecnicismos');
+      } },
+    { id: "T-07", name: "El prompt final incluye el rol autónomo sin pedir nada al usuario", run: () => {
+        const inf = autoInferFields('Se me ha roto un grifo');
+        const p = buildFinalPrompt({ tarea: 'Se me ha roto un grifo', rol: inf.role, formato: inf.formato, tono: inf.tono, audiencia: inf.audiencia, criterios: inf.criterios, adapter: 'GENERIC' });
+        return p.startsWith('Actúa como un técnico en bricolaje');
+      } },
+    { id: "T-08", name: "Campo tocado a mano no se sobrescribe en la siguiente inferencia", run: () => {
+        touchedFields.add('f_rol');
+        $('f_rol').value = 'un rol personalizado por el usuario';
+        applyInference(autoInferFields('Se me ha roto un grifo'));
+        const preserved = $('f_rol').value === 'un rol personalizado por el usuario';
+        touchedFields.delete('f_rol');
+        $('f_rol').value = '';
+        return preserved;
+      } },
+    { id: "T-09", name: "Sin colisión de 'local' en 'tienda local' (ninguna categoría la usa como palabra suelta)", run: () => {
+        const inf = autoInferFields('Quiero encontrar una tienda local barata');
+        return inf.matchedCategory === null || inf.matchedCategory.id !== 'automatizacion';
+      } },
+    { id: "T-10", name: "Análisis avanzado detecta petición vaga de una palabra como WARNING", run: () => buildAdvancedAnalysis('hola').status === 'WARNING' },
+    { id: "T-11", name: "Rol inferido para soporte técnico ('el wifi no funciona')", run: () => autoInferFields('El wifi de casa no funciona desde ayer').matchedCategory?.id === 'soporte_tecnico' },
+    { id: "T-12", name: "Rol inferido para automoción ('el coche hace un ruido raro')", run: () => autoInferFields('Mi coche hace un ruido raro al frenar, no sé qué puede ser').matchedCategory?.id === 'automocion' },
+    { id: "T-13", name: "Rol inferido para crianza ('mi hijo no quiere comer')", run: () => autoInferFields('Mi hijo no quiere comer verduras nunca').matchedCategory?.id === 'crianza' },
+    { id: "T-14", name: "Rol inferido para idiomas ('aprender inglés')", run: () => autoInferFields('Quiero aprender inglés desde cero').matchedCategory?.id === 'educacion' },
+    { id: "T-15", name: "Rol inferido para fiscalidad ('declaración de la renta')", run: () => autoInferFields('Tengo dudas con la declaración de la renta de este año').matchedCategory?.id === 'finanzas' },
+    { id: "T-16", name: "Rol inferido para trámites ('cita previa para el DNI')", run: () => autoInferFields('Necesito pedir cita previa para renovar el DNI').matchedCategory?.id === 'tramites_administrativos' },
+    { id: "T-17", name: "Todas las categorías tienen id, label, role y al menos 1 keyword", run: () => ROLE_TAXONOMY.every(c => c.id && c.label && c.role && c.keywords.length > 0) },
+    { id: "T-18", name: "'Aprender a tocar la guitarra' va a música, no al genérico 'aprender' de educación", run: () => autoInferFields('Quiero aprender a tocar la guitarra').matchedCategory?.id === 'musica' },
+    { id: "T-19", name: "'Aprender a coser' va a manualidades, no al genérico 'aprender' de educación", run: () => autoInferFields('Me gustaría aprender a coser mis propias cortinas').matchedCategory?.id === 'manualidades' },
+    { id: "T-20", name: "Sin falso positivo de 'mejor' suelta en compras (fix colisión de palabra suelta)", run: () => autoInferFields('Cuál es la mejor forma de organizar mi tiempo').matchedCategory?.id !== 'compras' },
+    { id: "T-21", name: "'Editar mis fotos' detecta fotografía aunque no sean adjacentes en el texto", run: () => autoInferFields('Quiero editar mis fotos para que tengan más brillo y contraste').matchedCategory?.id === 'fotografia' },
+    { id: "T-22", name: "'Decorar mi salón' (no 'el salón') detecta decoración", run: () => autoInferFields('Quiero decorar mi salón con un estilo nórdico').matchedCategory?.id === 'decoracion' },
+    { id: "T-23", name: "'Religión' detecta espiritualidad", run: () => autoInferFields('Tengo dudas sobre la oración en mi religión').matchedCategory?.id === 'espiritualidad' }
+  ];
+
+  let passed = 0;
+  let networkCalls = 0;
+  const originalFetch = window.fetch;
+  window.fetch = (...args) => { networkCalls++; return originalFetch(...args); };
+  try {
+    for (const t of tests) {
+      const isPass = !!t.run();
+      if (isPass) passed++;
+      out += `[${t.id}] ${t.name}\n >> RESULT: ${isPass ? 'PASS ✓' : 'FAIL ✗'}\n\n`;
+    }
+    $('userRequest').value = 'Quiero un plan de viaje a Lisboa';
+    $('apiKey').value = '';
+    await generarPrompt();
+  } finally {
+    window.fetch = originalFetch;
+  }
+  const netPass = networkCalls === 0;
+  if (netPass) passed++;
+  out += `[T-NET] Sin API key: cero llamadas de red al generar un prompt completo\n >> RESULT: ${netPass ? 'PASS ✓' : 'FAIL ✗'} (${networkCalls} llamada(s))\n\n`;
+  const total = tests.length + 1;
+
+  out += `=================================================\nVEREDICTO FINAL: ${passed}/${total} TESTS SUPERADOS.\n`;
+  if ($('testResults')) $('testResults').textContent = out;
+  logTrace("SYS", `Tests ejecutados: ${passed}/${total} superados.`);
+};
+
+window.onload = () => {
+  renderHistory();
+  logTrace("SYS", "Asistente de Prompts (Wizard V2, autónomo) inicializado.");
+};
+</script>
+</body>
+</html>

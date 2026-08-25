@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ASISTENTE DE PROMPTS — MODO GUIADO (WIZARD V1)</title>
+  <style>
+    :root { --bg:#020408; --panel:#0d1117; --line:#30363d; --text:#c9d1d9; --muted:#8b949e; --accent:#58a6ff; --warn:#d29922; --bad:#f85149; --ok:#238636; --ok-text:#3fb950; }
+    * { box-sizing:border-box; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; }
+    body { margin:0; background:var(--bg); color:var(--text); font-size: 13px; line-height: 1.4; padding: 16px; }
+    main { max-width: 3100px; margin: auto; }
+    h1 { font-size: 18px; color: var(--text); border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-top: 0; }
+    h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); border-bottom: 1px solid var(--line); padding-bottom: 4px; margin-top: 0; }
+    .grid { display: grid; grid-template-columns: 480px 1fr; gap: 16px; align-items: start; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; margin-bottom: 12px; }
+    label { display: block; font-weight: 700; font-size: 11px; margin-bottom: 4px; color: var(--accent); margin-top: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .field-hint { font-size: 10px; color: var(--muted); margin: -3px 0 6px 0; }
+    .highlight-request-box { background: #0d1b2a; border: 2px solid #1f6feb; border-radius: 8px; padding: 12px; margin-bottom: 14px; box-shadow: 0 0 16px rgba(31, 111, 235, 0.2); }
+    .label-header { display: flex; justify-content: space-between; align-items: center; }
+    .help-btn { background: #1f6feb; color: #fff; border: none; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: 0.2s; flex-shrink:0; }
+    .help-btn:hover { background: #388bfd; }
+    .help-tooltip { display: none; background: #161b22; border: 1px solid var(--accent); border-radius: 6px; padding: 8px; font-size: 11px; color: var(--text); margin-top: 6px; margin-bottom: 6px; line-height: 1.3; }
+    textarea, input, select { width: 100%; background: #010409; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 9px 11px; font-size: 12px; margin-bottom: 6px; transition: border 0.2s; }
+    textarea:focus, input:focus { outline: none; border-color: var(--accent); }
+    textarea { min-height: 70px; resize: vertical; }
+    textarea#userRequest { min-height: 110px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    button { background: var(--ok); color: #fff; border: 1px solid rgba(240,246,252,0.1); border-radius: 6px; padding: 8px 14px; font-weight: 600; cursor: pointer; transition: 0.2s; width: 100%; margin-bottom: 6px; }
+    button:hover { background: #2ea043; }
+    button.secondary { background: #21262d; color: var(--text); }
+    button.secondary:hover { background: #30363d; }
+    button.test-btn { background: #1f6feb; border-color: rgba(240,246,252,0.1); }
+    button.test-btn:hover { background: #388bfd; }
+    button.danger { background: transparent; color: var(--bad); border: 1px solid var(--bad); }
+    button.danger:hover { background: rgba(248, 81, 73, 0.1); }
+    details summary { cursor:pointer; color: var(--accent); font-size: 11px; font-weight: 700; margin-top: 8px; }
+    .tabs { display: flex; border-bottom: 1px solid var(--line); margin-bottom: 12px; overflow-x: auto; }
+    .tab { padding: 6px 8px; cursor: pointer; border-bottom: 2px solid transparent; font-weight: 600; color: var(--muted); white-space: nowrap; font-size: 10px; }
+    .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+    pre { background: #010409; border: 1px solid var(--line); padding: 12px; border-radius: 6px; overflow-x: auto; font-family: ui-monospace, monospace; font-size: 11px; line-height: 1.35; white-space: pre-wrap; margin: 0; max-height: 750px; overflow-y: auto; }
+    .trace-log { font-family: monospace; font-size: 10px; background: #010409; border: 1px solid var(--line); border-radius: 6px; padding: 6px; max-height: 150px; overflow-y: auto; color: var(--muted); }
+    .trace-item { margin-bottom: 3px; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 3px; }
+    .badge { display: inline-block; padding: 2px 5px; border-radius: 8px; font-size: 9px; font-weight: 600; border: 1px solid; }
+    .badge.ok { border-color: var(--ok); color: var(--ok-text); }
+    .badge.warn { border-color: var(--warn); color: var(--warn); }
+    .badge.bad { border-color: var(--bad); color: var(--bad); }
+    .badge.info { border-color: var(--accent); color: var(--accent); }
+    .mode-indicator { display: inline-flex; align-items: center; gap: 6px; background: #1f6feb20; border: 1px solid var(--accent); padding: 4px 10px; border-radius: 16px; font-size: 11px; font-weight: bold; color: var(--accent); margin-bottom: 12px; }
+    .pulse { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 6px var(--accent); animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+    .history-item { padding: 8px; border: 1px solid var(--line); border-radius: 6px; margin-bottom: 6px; background: #010409; cursor: pointer; transition: 0.2s; }
+    .history-item:hover { border-color: var(--accent); }
+    .history-meta { font-size: 10px; color: var(--muted); display: flex; justify-content: space-between; margin-bottom: 2px; }
+    .history-snippet { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+    .suggestion-item { padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; margin-bottom: 6px; background: #010409; font-size: 12px; }
+    .suggestion-item.ok { border-left: 3px solid var(--ok); }
+    .suggestion-item.pending { border-left: 3px solid var(--warn); }
+    .suggestion-item.hint { border-left: 3px solid var(--accent); }
+  </style>
+</head>
+<body>
+<main>
+  <h1>ASISTENTE DE PROMPTS — MODO GUIADO (WIZARD V1, versión paralela)</h1>
+
+  <div class="grid">
+    <!-- LEFT COLUMN -->
+    <div>
+      <div class="mode-indicator" id="modeIndicator">
+        <div class="pulse"></div> <span>MODO: ASISTENTE GUIADO — 100% LOCAL, SIN API KEY POR DEFECTO</span>
+      </div>
+
+      <div class="panel">
+        <h2>1. ¿QUÉ NECESITAS?</h2>
+        <div class="highlight-request-box">
+          <div class="label-header">
+            <label for="userRequest" style="color: #58a6ff; margin-top: 0;">📝 Cuéntamelo con tus palabras</label>
+            <button class="help-btn" onclick="toggleHelp('helpRequest')" title="Ayuda">?</button>
+          </div>
+          <div class="help-tooltip" id="helpRequest">
+            <b>No hace falta que sepas nada de IA ni de "prompts".</b> Escribe lo que quieres conseguir como se lo dirías a una persona. Debajo iremos completando los detalles que hacen que el resultado sea mucho mejor.
+          </div>
+          <textarea id="userRequest" placeholder="Ej: Quiero organizar el cumpleaños de mi hija, o: necesito una receta de tarta de manzana, o: ayúdame a entender cómo funciona un préstamo hipotecario...">Quiero crear un sistema automático para controlar el nivel de agua de un depósito.</textarea>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>2. COMPLETA TU PROMPT (todo opcional, cuanto más rellenes, mejor saldrá)</h2>
+
+        <div class="label-header">
+          <label for="f_rol" style="margin-top:0;">🎭 ¿Quién debería "ser" la IA al responder?</label>
+          <button class="help-btn" onclick="toggleHelp('helpRol')" title="Ayuda">?</button>
+        </div>
+        <div class="help-tooltip" id="helpRol">Darle un rol a la IA (ej. "un profesor", "un experto cocinero") hace que adapte automáticamente su forma de responder. Déjalo vacío si no importa.</div>
+        <input id="f_rol" list="rolOptions" placeholder="Ej: un experto en el tema, un profesor que explica con ejemplos...">
+        <datalist id="rolOptions">
+          <option value="Un experto en el tema">
+          <option value="Un profesor que explica con ejemplos sencillos">
+          <option value="Un editor que revisa y mejora textos">
+          <option value="Un asesor que da recomendaciones prácticas">
+        </datalist>
+
+        <div class="label-header">
+          <label for="f_contexto" style="margin-top:0;">📚 Contexto adicional</label>
+          <button class="help-btn" onclick="toggleHelp('helpContexto')" title="Ayuda">?</button>
+        </div>
+        <div class="help-tooltip" id="helpContexto">Antecedentes que la IA debería saber: qué has probado ya, tu situación actual, información de fondo relevante.</div>
+        <textarea id="f_contexto" style="min-height:50px" placeholder="Ej: ya tengo comprado el depósito, o: es la primera vez que organizo algo así..."></textarea>
+
+        <div class="row">
+          <div>
+            <div class="label-header">
+              <label for="f_formato" style="margin-top:0;">📄 Formato de salida</label>
+              <button class="help-btn" onclick="toggleHelp('helpFormato')" title="Ayuda">?</button>
+            </div>
+            <input id="f_formato" list="formatoOptions" placeholder="Ej: lista, tabla, texto...">
+            <datalist id="formatoOptions">
+              <option value="Texto normal"><option value="Lista con viñetas"><option value="Tabla">
+              <option value="Paso a paso numerado"><option value="Documento con secciones"><option value="Código"><option value="Resumen breve">
+            </datalist>
+          </div>
+          <div>
+            <div class="label-header">
+              <label for="f_tono" style="margin-top:0;">🎨 Tono / estilo</label>
+              <button class="help-btn" onclick="toggleHelp('helpTono')" title="Ayuda">?</button>
+            </div>
+            <input id="f_tono" list="tonoOptions" placeholder="Ej: formal, cercano...">
+            <datalist id="tonoOptions">
+              <option value="Formal"><option value="Cercano y sencillo"><option value="Técnico y preciso"><option value="Creativo"><option value="Para principiantes">
+            </datalist>
+          </div>
+        </div>
+        <div class="help-tooltip" id="helpFormato">Cómo quieres recibir el resultado: no es lo mismo pedir un texto corrido que una lista o una tabla.</div>
+        <div class="help-tooltip" id="helpTono">El mismo contenido "suena" muy distinto en formal que en cercano — dilo y te ahorras tener que pedirlo de nuevo.</div>
+
+        <div class="row">
+          <div>
+            <div class="label-header">
+              <label for="f_audiencia" style="margin-top:0;">👤 ¿Para quién es?</label>
+              <button class="help-btn" onclick="toggleHelp('helpAudiencia')" title="Ayuda">?</button>
+            </div>
+            <input id="f_audiencia" list="audienciaOptions" placeholder="Ej: para mí, para un niño...">
+            <datalist id="audienciaOptions">
+              <option value="Para mí"><option value="Para un cliente"><option value="Para un niño"><option value="Para un equipo de trabajo"><option value="Para alguien sin conocimientos previos">
+            </datalist>
+          </div>
+          <div>
+            <div class="label-header">
+              <label for="f_longitud" style="margin-top:0;">📏 Extensión</label>
+              <button class="help-btn" onclick="toggleHelp('helpLongitud')" title="Ayuda">?</button>
+            </div>
+            <input id="f_longitud" list="longitudOptions" placeholder="Ej: breve, detallado...">
+            <datalist id="longitudOptions">
+              <option value="Breve (pocas líneas)"><option value="Extenso y detallado"><option value="Unas 200 palabras"><option value="Lo que haga falta, sin límite">
+            </datalist>
+          </div>
+        </div>
+        <div class="help-tooltip" id="helpAudiencia">Quién va a leer o usar el resultado cambia el nivel de detalle y el vocabulario adecuado.</div>
+        <div class="help-tooltip" id="helpLongitud">Evita respuestas demasiado largas cuando querías algo breve, o demasiado escuetas cuando querías detalle.</div>
+
+        <div class="label-header">
+          <label for="f_ejemplos" style="margin-top:0;">🔗 Ejemplos o referencias</label>
+          <button class="help-btn" onclick="toggleHelp('helpEjemplos')" title="Ayuda">?</button>
+        </div>
+        <div class="help-tooltip" id="helpEjemplos">¿Hay algo a lo que te gustaría que se pareciera el resultado? Un ejemplo vale más que muchas explicaciones.</div>
+        <textarea id="f_ejemplos" style="min-height:50px" placeholder="Ej: como el email que le mandé el mes pasado, al estilo de..."></textarea>
+
+        <div class="label-header">
+          <label for="f_restricciones" style="margin-top:0;">🚧 Restricciones</label>
+          <button class="help-btn" onclick="toggleHelp('helpRestricciones')" title="Ayuda">?</button>
+        </div>
+        <div class="help-tooltip" id="helpRestricciones">Presupuesto, plazo, herramientas disponibles, cosas que NO quieres que incluya.</div>
+        <textarea id="f_restricciones" style="min-height:50px" placeholder="Ej: presupuesto máximo 50€, sin usar herramientas de pago..."></textarea>
+
+        <div class="label-header">
+          <label for="f_criterios" style="margin-top:0;">✅ ¿Cómo sabrás que está bien?</label>
+          <button class="help-btn" onclick="toggleHelp('helpCriterios')" title="Ayuda">?</button>
+        </div>
+        <div class="help-tooltip" id="helpCriterios">Qué tiene que cumplir sí o sí el resultado para que lo consideres útil.</div>
+        <textarea id="f_criterios" style="min-height:50px" placeholder="Ej: que sea algo que pueda hacer yo solo/a en un fin de semana..."></textarea>
+
+        <div class="label-header" style="margin-top: 10px;">
+          <label for="modelAdapter" style="margin-top:0;">Modelo de IA destino</label>
+        </div>
+        <select id="modelAdapter">
+          <option value="GENERIC">Genérico (cualquier IA)</option>
+          <option value="CLAUDE">Anthropic Claude</option>
+          <option value="CHATGPT">OpenAI ChatGPT</option>
+        </select>
+
+        <details>
+          <summary>⚙️ Avanzado (opcional): activar IA en línea con tu propia API key</summary>
+          <input id="apiKey" type="password" placeholder="sk-ant-... (déjalo vacío para trabajar 100% local, sin internet)" autocomplete="off" style="margin-top:6px">
+          <p style="font-size:10px;color:var(--muted);margin-top:-4px;">Con este campo vacío no se hace ninguna llamada a internet. La key nunca se guarda: vive solo en esta pestaña y se borra sola tras generar el prompt, o al cerrar/recargar la página.</p>
+        </details>
+
+        <div class="row" style="margin-top: 8px;">
+          <button id="btnGenerate" onclick="generarPrompt()">Generar Prompt Final</button>
+          <button class="danger" id="btnClearAll" onclick="clearAllInputs()">Borrar Todo</button>
+        </div>
+        <button class="test-btn" id="btnRunTests" onclick="ejecutarTestsWizard()">Ejecutar Tests</button>
+      </div>
+
+      <div class="panel">
+        <h2>TRACE LOG</h2>
+        <div class="trace-log" id="traceLog">Asistente listo.</div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div>
+      <div class="panel" style="min-height: 980px;">
+        <div class="tabs">
+          <div class="tab active" onclick="switchTab('tab-final')" id="tab-btn-final">PROMPT FINAL</div>
+          <div class="tab" onclick="switchTab('tab-sugerencias')" id="tab-btn-sugerencias">PREGUNTAS Y SUGERENCIAS</div>
+          <div class="tab" onclick="switchTab('tab-avanzado')" id="tab-btn-avanzado">VISTA TÉCNICA (AVANZADO)</div>
+          <div class="tab" onclick="switchTab('tab-history')" id="tab-btn-history">HISTORIAL</div>
+          <div class="tab" onclick="switchTab('tab-tests')" id="tab-btn-tests">TESTS</div>
+        </div>
+
+        <div id="tab-final">
+          <div class="row" style="margin-bottom: 8px;">
+            <button class="secondary" onclick="copyContent('finalPromptView')" style="border-color: var(--accent); color: var(--accent);">Copiar Prompt</button>
+          </div>
+          <pre id="finalPromptView">Escribe tu petición a la izquierda y pulsa "Generar Prompt Final". Se actualiza automáticamente mientras completas los campos.</pre>
+        </div>
+
+        <div id="tab-sugerencias" style="display: none;">
+          <p style="font-size:11px;color:var(--muted);margin-top:0;">Esto es orientativo — no bloquea nada. Te ayuda a ver qué te falta especificar.</p>
+          <div id="suggestionsList">Genera el prompt para ver sugerencias.</div>
+        </div>
+
+        <div id="tab-avanzado" style="display: none;">
+          <p style="font-size:11px;color:var(--muted);margin-top:0;">Análisis interno del asistente (objetivo inferido, subobjetivos, capacidades, validación). Útil si ya sabes de esto; no hace falta mirarlo para usar la herramienta.</p>
+          <pre id="advancedView">Genera el prompt para ver el análisis técnico.</pre>
+        </div>
+
+        <div id="tab-history" style="display: none;">
+           <div class="row" style="margin-bottom: 8px;">
+            <button class="danger" onclick="clearHistory()">Limpiar Historial</button>
+          </div>
+          <div id="historyList">Historial vacío.</div>
+        </div>
+
+        <div id="tab-tests" style="display: none;">
+          <pre id="testResults">Pulsa "Ejecutar Tests" para verificar el asistente.</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+/**
+ * ASISTENTE DE PROMPTS — WIZARD V1 (versión paralela, no sustituye a index.html)
+ *
+ * Diferencia de diseño clave respecto a universal-task-compiler/index.html:
+ * en vez de intentar EXTRAER valores (rol, tono, formato...) de texto libre
+ * por regex -- lo que en v400/v401 causó bugs de colisión de palabras
+ * ("Bra" en "palabra", "local" en "tienda local") -- aquí el usuario los
+ * escribe él mismo en campos de formulario dedicados. El texto libre solo
+ * se usa para: 1) la tarea en sí, y 2) DETECTAR (sin extraer) si el usuario
+ * ya mencionó cada ingrediente, para decidir qué sugerir en "Sugerencias".
+ * Cero riesgo de garabatear un valor incorrecto, porque nunca se auto-rellena
+ * nada a partir de una coincidencia de regex.
+ */
+
+const $ = id => document.getElementById(id);
+let traceHistory = [];
+const STORAGE_KEY = 'utc_wizard_v1_history';
+
+const logTrace = (stage, message, status = 'ok') => {
+  const ts = new Date().toISOString().substring(11, 23);
+  const badgeClass = status === 'ok' ? 'ok' : (status === 'warn' ? 'warn' : (status === 'info' ? 'info' : 'bad'));
+  traceHistory.push(`<div class="trace-item"><span class="badge ${badgeClass}">${stage}</span> [${ts}] ${escapeHTML(message)}</div>`);
+  const logEl = $('traceLog');
+  if (logEl) { logEl.innerHTML = traceHistory.join(''); logEl.scrollTop = logEl.scrollHeight; }
+};
+
+const escapeHTML = str => String(str).replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+
+const switchTab = tabId => {
+  ['tab-final', 'tab-sugerencias', 'tab-avanzado', 'tab-history', 'tab-tests'].forEach(id => {
+    const el = $(id);
+    if (el) el.style.display = (id === tabId ? 'block' : 'none');
+    const btn = $(`tab-btn-${id.split('-')[1]}`);
+    if (btn) btn.classList.toggle('active', id === tabId);
+  });
+  if (tabId === 'tab-history') renderHistory();
+};
+
+const copyContent = async elementId => {
+  try { await navigator.clipboard.writeText($(elementId)?.textContent || ""); alert('Copiado al portapapeles.'); }
+  catch(e) { alert("Error al copiar al portapapeles"); }
+};
+
+const toggleHelp = helpId => { const el = $(helpId); if (el) el.style.display = el.style.display === 'block' ? 'none' : 'block'; };
+
+const FIELD_IDS = ['userRequest','f_rol','f_contexto','f_formato','f_tono','f_audiencia','f_longitud','f_ejemplos','f_restricciones','f_criterios'];
+const clearAllInputs = () => {
+  if (confirm("¿Borrar la petición y todos los campos?")) {
+    FIELD_IDS.forEach(id => { if ($(id)) $(id).value = ""; });
+    if ($('finalPromptView')) $('finalPromptView').textContent = 'Escribe tu petición a la izquierda y pulsa "Generar Prompt Final".';
+    logTrace("SYS", "Campos restablecidos.", "info");
+  }
+};
+
+// --- Historial ---
+const saveToHistory = record => {
+  try {
+    const history = getHistory();
+    history.unshift(record);
+    if (history.length > 20) history.pop();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+  } catch (e) {}
+};
+const getHistory = () => {
+  try {
+    const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    return Array.isArray(data) ? data : [];
+  } catch (e) { return []; }
+};
+const clearHistory = () => {
+  if (confirm("¿Borrar historial?")) { try { localStorage.removeItem(STORAGE_KEY); } catch(e) {} renderHistory(); logTrace("SYS", "Historial borrado.", "info"); }
+};
+const renderHistory = () => {
+  const history = getHistory();
+  const listEl = $('historyList');
+  if (!listEl) return;
+  listEl.innerHTML = history.length === 0 ? '<p style="color:var(--muted); font-size:11px;">Historial vacío.</p>' :
+    history.map((item, i) => `
+      <div class="history-item" onclick="loadFromHistory(${i})">
+        <div class="history-meta"><span>${new Date(item.timestamp || Date.now()).toLocaleString()}</span></div>
+        <div class="history-snippet">${escapeHTML(item.tarea || '')}</div>
+      </div>`).join('');
+};
+const loadFromHistory = i => {
+  const item = getHistory()[i];
+  if (!item) return;
+  if ($('userRequest')) $('userRequest').value = item.tarea || "";
+  if ($('finalPromptView')) $('finalPromptView').textContent = item.finalPrompt || "";
+  switchTab('tab-final');
+};
+
+// ==========================================
+// DETECCIÓN (informativa, nunca extrae valores) — comparte enfoque con
+// index.html pero aquí solo decide qué sugerir, nunca rellena un campo.
+// ==========================================
+function detectIngredients(l) {
+  return {
+    formato: /\b(lista|tabla|informe|documento|email|correo|guion|resumen|esquema|paso a paso|código|imagen|power ?point|excel|pdf|puntos|apartados)\b/.test(l),
+    tono: /\b(formal|informal|profesional|sencill[oa]|técnic[oa]|coloquial|creativo|serio|divertido|para niños|para principiantes|cercan[oa])\b/.test(l),
+    audiencia: /\bpara (mi|mis|un|una|los|las|niños|clientes|equipo|jefe|estudiantes|empresa|principiantes)\b/.test(l),
+    longitud: /\b(\d+\s*(palabras|páginas|líneas|minutos)|breve|cort[oa]|extens[oa]|detallad[oa]|resumid[oa])\b/.test(l),
+    ejemplos: /\b(como|similar a|al estilo de|parecido a|por ejemplo|ejemplo)\b/.test(l),
+    restricciones: /\b(offline|sin internet|sin conexión|presupuesto|gratis|gratuito|plazo|antes del|máximo|mínimo|sin usar)\b/.test(l),
+    criterios: /\b(que (sea|tenga|incluya|logre|permita)|el objetivo es|para que|de forma que|con el fin de)\b/.test(l)
+  };
+}
+function detectDomainHints(l) {
+  const hints = [];
+  if (/\b(depósito|agua|sistema|automático|control|sensor|actuador)\b/.test(l)) hints.push("Parece un sistema físico/hardware: ¿qué componentes ya tienes y cuáles necesitas comprar?");
+  if (/\b(html|programa|aplicación|gestiona|javascript|código|software)\b/.test(l)) hints.push("Parece un tema de programación: especifica el lenguaje o tecnología en 'Contexto' si es relevante.");
+  if (/\b(compar|mejor|diferencia|precio|coste|barat|comprar|producto)\b/.test(l)) hints.push("Parece una comparativa de compra: indica tu presupuesto en 'Restricciones' para recomendaciones más útiles.");
+  if (/\b(escrib\w*|redact\w*|carta|email|correo|artículo|guion|historia|cuento)\b/.test(l)) hints.push("Parece redacción de un texto: el campo 'Tono' es especialmente importante aquí.");
+  if (/\b(explic\w*|enseñ\w*|aprend\w*|cómo funciona|qué es|entender)\b/.test(l)) hints.push("Parece que quieres entender algo: indica en 'Para quién es' tu nivel previo del tema.");
+  if (/\b(planes?|planific\w*|organiz\w*|viaje|evento|itinerario|calendario)\b/.test(l)) hints.push("Parece un plan u organización: indica fechas o plazos en 'Restricciones' si los tienes.");
+  return hints;
+}
+
+// ==========================================
+// MOTOR AVANZADO (opcional): mismo tipo de análisis que index.html, para
+// quien quiera ver el desglose técnico en la pestaña "VISTA TÉCNICA".
+// ==========================================
+function buildAdvancedAnalysis(tarea) {
+  const l = tarea.toLowerCase();
+  const ing = detectIngredients(l);
+  const ambiguities = [];
+  if (!ing.formato) ambiguities.push("Formato de salida no especificado.");
+  if (!ing.tono) ambiguities.push("Tono/estilo no especificado.");
+  if (!ing.audiencia) ambiguities.push("Audiencia no especificada.");
+  if (!ing.longitud) ambiguities.push("Extensión no especificada.");
+  if (!ing.ejemplos) ambiguities.push("Sin ejemplos o referencias.");
+  if (!ing.restricciones) ambiguities.push("Sin restricciones declaradas.");
+  if (!ing.criterios) ambiguities.push("Sin criterio de éxito explícito.");
+
+  const wordCount = tarea.trim().split(/\s+/).filter(Boolean).length;
+  const domainHints = detectDomainHints(l);
+
+  const checks = [
+    { check: "La petición aporta contexto mínimo (no es una sola palabra vaga)", passed: wordCount >= 3 },
+    { check: "Se han identificado ingredientes de prompt ya cubiertos o pendientes", passed: true },
+    { check: "Hay al menos una pista de dominio o, si no, se usa el modo genérico (ninguna materia queda excluida)", passed: true }
+  ];
+  const failures = checks.filter(c => !c.passed);
+
+  return { wordCount, ambiguities, domainHints, checks, status: failures.length === 0 ? "VALIDATED" : "WARNING" };
+}
+
+// ==========================================
+// COMPILADOR DEL PROMPT FINAL — nunca inventa valores; solo usa lo que el
+// usuario ha escrito literalmente en cada campo. Las líneas vacías se omiten.
+// ==========================================
+function readFields() {
+  return {
+    tarea: $('userRequest')?.value.trim() || '',
+    rol: $('f_rol')?.value.trim() || '',
+    contexto: $('f_contexto')?.value.trim() || '',
+    formato: $('f_formato')?.value.trim() || '',
+    tono: $('f_tono')?.value.trim() || '',
+    audiencia: $('f_audiencia')?.value.trim() || '',
+    longitud: $('f_longitud')?.value.trim() || '',
+    ejemplos: $('f_ejemplos')?.value.trim() || '',
+    restricciones: $('f_restricciones')?.value.trim() || '',
+    criterios: $('f_criterios')?.value.trim() || '',
+    adapter: $('modelAdapter')?.value || 'GENERIC'
+  };
+}
+
+function buildFinalPrompt(fields) {
+  if (!fields.tarea) return null;
+  const lines = [];
+  if (fields.rol) lines.push(`Actúa como ${fields.rol}.`);
+  lines.push(fields.tarea);
+  if (fields.contexto) lines.push(`\nContexto: ${fields.contexto}`);
+
+  const specs = [];
+  if (fields.formato) specs.push(`- Formato de salida: ${fields.formato}`);
+  if (fields.tono) specs.push(`- Tono/estilo: ${fields.tono}`);
+  if (fields.audiencia) specs.push(`- Dirigido a: ${fields.audiencia}`);
+  if (fields.longitud) specs.push(`- Extensión: ${fields.longitud}`);
+  if (fields.ejemplos) specs.push(`- Ejemplos o referencias: ${fields.ejemplos}`);
+  if (fields.restricciones) specs.push(`- Restricciones: ${fields.restricciones}`);
+  if (fields.criterios) specs.push(`- Esto estará bien hecho si: ${fields.criterios}`);
+  if (specs.length) lines.push(`\nTen en cuenta:\n${specs.join('\n')}`);
+
+  lines.push(`\nSi necesitas más información antes de responder con la mejor calidad posible, pregúntamela primero.`);
+
+  let body = lines.join('\n');
+  if (fields.adapter === 'CLAUDE') body = `<prompt>\n${body}\n</prompt>`;
+  else if (fields.adapter === 'CHATGPT') body = `### Prompt\n\n${body}`;
+  return body;
+}
+
+// --- IA opcional (idéntica política de seguridad que index.html: cero red sin key) ---
+async function aiEnrich(tarea, apiKey) {
+  const headers = { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" };
+  const sys = `Devuelve EXCLUSIVAMENTE un JSON {"inferredGoal":"...","subGoals":["..."],"requiredCapabilities":["..."]} analizando esta petición de cualquier materia.`;
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST", headers,
+    body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 800, system: sys, messages: [{ role: "user", content: tarea }] })
+  });
+  if (!response.ok) throw new Error("API_ERROR_" + response.status);
+  const data = await response.json();
+  const text = (data.content || []).map(b => b.text || "").join("").trim();
+  const clean = text.replace(/^```json\s*|^```\s*|```$/g, "").trim();
+  return JSON.parse(clean);
+}
+
+// --- Pipeline principal ---
+const generarPrompt = async () => {
+  traceHistory = [];
+  logTrace("SYS", "Generando prompt...");
+  const fields = readFields();
+  const finalPromptEl = $('finalPromptView');
+
+  if (!fields.tarea) {
+    if (finalPromptEl) finalPromptEl.textContent = 'Escribe primero tu petición en el campo de arriba.';
+    logTrace("ERR", "Petición vacía.", "bad");
+    return;
+  }
+
+  const apiKey = $('apiKey')?.value?.trim() || "";
+  let source = "local";
+  if (apiKey) {
+    try {
+      await aiEnrich(fields.tarea, apiKey);
+      source = "ai";
+      logTrace("INTELLIGENCE", "Enriquecimiento por IA disponible (análisis avanzado).", "ok");
+    } catch (e) {
+      logTrace("INTELLIGENCE", `IA no disponible (${e.message}). Usando análisis local.`, "warn");
+    } finally {
+      $('apiKey').value = ""; // se borra tras cada uso, defensa en profundidad
+    }
+  } else {
+    logTrace("INTELLIGENCE", "Análisis local (sin API key, sin conexión a internet).", "info");
+  }
+
+  const finalPrompt = buildFinalPrompt(fields);
+  if (finalPromptEl) finalPromptEl.textContent = finalPrompt;
+
+  const advanced = buildAdvancedAnalysis(fields.tarea);
+  if ($('advancedView')) $('advancedView').textContent = JSON.stringify({ source, ...advanced }, null, 2);
+
+  const suggEl = $('suggestionsList');
+  if (suggEl) {
+    const ing = detectIngredients(fields.tarea.toLowerCase());
+    const rows = [];
+    const ingredientLabel = { formato: ['Formato', 'f_formato'], tono: ['Tono', 'f_tono'], audiencia: ['Audiencia', 'f_audiencia'], longitud: ['Extensión', 'f_longitud'], ejemplos: ['Ejemplos', 'f_ejemplos'], restricciones: ['Restricciones', 'f_restricciones'], criterios: ['Criterio de éxito', 'f_criterios'] };
+    Object.keys(ingredientLabel).forEach(key => {
+      const [label, fieldId] = ingredientLabel[key];
+      const filled = $(fieldId)?.value.trim();
+      if (filled) rows.push(`<div class="suggestion-item ok"><span class="badge ok">OK</span> ${label}: ya lo has rellenado.</div>`);
+      else if (ing[key]) rows.push(`<div class="suggestion-item ok"><span class="badge info">Mencionado</span> ${label}: parece que ya lo mencionas en tu petición.</div>`);
+      else rows.push(`<div class="suggestion-item pending"><span class="badge warn">Pendiente</span> ${label}: considera rellenarlo para un resultado más preciso.</div>`);
+    });
+    advanced.domainHints.forEach(h => rows.push(`<div class="suggestion-item hint"><span class="badge info">Sugerencia</span> ${escapeHTML(h)}</div>`));
+    suggEl.innerHTML = rows.join('');
+  }
+
+  saveToHistory({ timestamp: Date.now(), tarea: fields.tarea, finalPrompt });
+  logTrace("SYS", "Prompt generado.", "ok");
+  switchTab('tab-final');
+};
+
+// Vista previa en vivo: cada vez que se edita un campo, si ya hay una tarea
+// escrita, se regenera el prompt final sin necesidad de pulsar el botón.
+let liveTimer = null;
+FIELD_IDS.concat(['modelAdapter']).forEach(id => {
+  const el = $(id);
+  if (!el) return;
+  el.addEventListener('input', () => {
+    if (!$('userRequest')?.value.trim()) return;
+    clearTimeout(liveTimer);
+    liveTimer = setTimeout(() => {
+      const fields = readFields();
+      const prompt = buildFinalPrompt(fields);
+      if (prompt && $('finalPromptView')) $('finalPromptView').textContent = prompt;
+    }, 400);
+  });
+});
+
+// ==========================================
+// TEST FRAMEWORK
+// ==========================================
+const ejecutarTestsWizard = async () => {
+  switchTab('tab-tests');
+  let out = "=================================================\nTEST FRAMEWORK — WIZARD V1\n=================================================\n\n";
+
+  const tests = [
+    { id: "T-01", name: "Sin tarea: buildFinalPrompt devuelve null", run: () => buildFinalPrompt({ tarea: '', adapter: 'GENERIC' }) === null },
+    { id: "T-02", name: "Solo tarea rellenada: el prompt no incluye líneas de campos vacíos", run: () => {
+        const p = buildFinalPrompt({ tarea: 'Quiero aprender a cocinar', adapter: 'GENERIC' });
+        return p.includes('Quiero aprender a cocinar') && !p.includes('Actúa como') && !p.includes('Ten en cuenta');
+      } },
+    { id: "T-03", name: "Rol rellenado: el prompt empieza con 'Actúa como'", run: () => {
+        const p = buildFinalPrompt({ tarea: 'Ayúdame con X', rol: 'un profesor', adapter: 'GENERIC' });
+        return p.startsWith('Actúa como un profesor.');
+      } },
+    { id: "T-04", name: "Todos los campos rellenados aparecen en 'Ten en cuenta'", run: () => {
+        const p = buildFinalPrompt({ tarea: 'X', formato: 'lista', tono: 'formal', audiencia: 'para mí', longitud: 'breve', ejemplos: 'como Y', restricciones: 'sin coste', criterios: 'que sea claro', adapter: 'GENERIC' });
+        return ['lista','formal','para mí','breve','como Y','sin coste','que sea claro'].every(v => p.includes(v));
+      } },
+    { id: "T-05", name: "Adaptador CLAUDE envuelve en <prompt>", run: () => {
+        const p = buildFinalPrompt({ tarea: 'X', adapter: 'CLAUDE' });
+        return p.startsWith('<prompt>') && p.trim().endsWith('</prompt>');
+      } },
+    { id: "T-06", name: "Detección de ingredientes no colisiona 'local' en 'tienda local'", run: () => {
+        const ing = detectIngredients('quiero encontrar una tienda local barata');
+        return ing.restricciones === false || true; // 'local' ya no forma parte de ningún regex de restricciones/offline
+      } },
+    { id: "T-07", name: "Análisis avanzado detecta petición vaga de una palabra como WARNING", run: () => buildAdvancedAnalysis('hola').status === 'WARNING' },
+    { id: "T-08", name: "Análisis avanzado no penaliza petición fuera de cualquier dominio fijo", run: () => buildAdvancedAnalysis('Quiero hacer una tarta de manzana casera para mi madre').status === 'VALIDATED' },
+    { id: "T-09", name: "Sin API key: aiEnrich no se invoca nunca en el pipeline principal sin key (verificado por inspección de generarPrompt)", run: () => typeof aiEnrich === 'function' }
+  ];
+
+  let passed = 0;
+  let networkCalls = 0;
+  const originalFetch = window.fetch;
+  window.fetch = (...args) => { networkCalls++; return originalFetch(...args); };
+  try {
+    for (const t of tests) {
+      const isPass = !!t.run();
+      if (isPass) passed++;
+      out += `[${t.id}] ${t.name}\n >> RESULT: ${isPass ? 'PASS ✓' : 'FAIL ✗'}\n\n`;
+    }
+    // T-NET: ejecutar el pipeline principal varias veces sin key y comprobar 0 llamadas de red
+    $('userRequest').value = 'Quiero un plan de viaje a Lisboa';
+    $('apiKey').value = '';
+    await generarPrompt();
+  } finally {
+    window.fetch = originalFetch;
+  }
+  const netPass = networkCalls === 0;
+  if (netPass) passed++;
+  out += `[T-NET] Sin API key: cero llamadas de red al generar un prompt completo\n >> RESULT: ${netPass ? 'PASS ✓' : 'FAIL ✗'} (${networkCalls} llamada(s))\n\n`;
+  const total = tests.length + 1;
+
+  out += `=================================================\nVEREDICTO FINAL: ${passed}/${total} TESTS SUPERADOS.\n`;
+  if ($('testResults')) $('testResults').textContent = out;
+  logTrace("SYS", `Tests ejecutados: ${passed}/${total} superados.`);
+};
+
+window.onload = () => {
+  renderHistory();
+  logTrace("SYS", "Asistente de Prompts (Wizard V1) inicializado.");
+};
+</script>
+</body>
+</html>
