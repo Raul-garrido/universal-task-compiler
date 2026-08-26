@@ -491,6 +491,14 @@ const LANG_PACKS = {
       fitness: /\b(entrenamiento\w*|entrenar|rutina de ejercicio\w*|hacer ejercicio|gimnasio|fuerza y resistencia|hacer deporte|abdominales|estiramientos)\b|estirar la espalda|ejercicios (para|pa) estirar|rutina (para|pa) estirar|rutina de pesas/,
       promptEngineering: /\bamazon q\b|(prompt|orden|instrucciones?) (para|a) (que )?(una |la |el )?(ia|aki).{0,50}(código|script|archivo|función|proyecto)\b|(utilizar|usar) (una )?ia para (modificar|revisar|analizar)/,
       procedureAdherence: /\bplaybook\b|procedimiento (ya )?(establecido|documentado|probado|validado)\b|(no|evitar) (repetir|volver a intentar) (métodos|enfoques|cosas) que (ya )?(no funcionan|sabe que no funciona)|seguir (el|un) (proceso|procedimiento) ya (conocido|probado)|(prompt|orden|instrucciones?) (para|a) (que )?(una |la |el )?(ia|aki)\b|(aki|agente|amazon q).{0,80}(vuelve a intentar|se (está|esta) liando|repite (el mismo|lo mismo)|sigue intentando|no aprende)|qu[eé] decirle a (aki|la ia|el agente)|c[oó]mo decirle a (aki|la ia|el agente)|(funciona|ejecuta|hace)( esto)? bien.{0,60}(no está|no esta|aún no|aun no|todavía no|todavia no) (depurad[oa]|probad[oa]|list[oa])|usa(r)? (la misma|el mismo) (forma|método|metodo|manera) que/,
+      // Fix v471: dos dominios nuevos (RRHH e Inmobiliaria) añadidos tras un
+      // diagnóstico específico — no por la lista genérica de 20+ dominios que
+      // proponía ChatGPT (esa se rechazó explícitamente), sino porque estos
+      // dos eran los únicos, de un lote de 20 temas fuera de la taxonomía,
+      // que parecían plausibles en el uso real de la herramienta.
+      rrhh: /\brecursos humanos\b|evaluaci[oó]n de desempe[ñn]o|clima laboral|gesti[oó]n del talento|proceso de selecci[oó]n( de personal)?|onboarding de (empleados|personal)|conflicto laboral|plan de formaci[oó]n (para empleados|de personal)/,
+      inmobiliaria: /\binmobiliaria\b|tasar (mi |el )?(piso|casa|vivienda)|tasaci[oó]n inmobiliaria|vender (mi |el )?(piso|casa|vivienda)|c[eé]dula de habitabilidad|nota simple( del registro)?|agente inmobiliario|comisi[oó]n inmobiliaria|invertir en (un piso|una vivienda|inmuebles)|proyecto de obra con energ[ií]as renovables/,
+      agricultura: /\bhuerto\w*|jardiner[ií]a|\bsembrar\b|\bsiembra\b|cosech\w*|abono (para|de) plantas|fertilizante|plaga(s)? (del|en el) (huerto|jard[ií]n)|regar (mis |las )?plantas|mis plantas del (jard[ií]n|huerto)|cuid\w* (mi|el) (jard[ií]n|huerto)/,
       offline: /\b(offline|sin internet|sin conexión|sin wifi)\b/,
       urgency: /\b(urgente|crític[oa]|cuanto antes|lo antes posible|en producción|inmediato)\b/
     },
@@ -516,7 +524,10 @@ const LANG_PACKS = {
       marketing: "Proponer una estrategia de promoción o contenido con canales, esfuerzo y alcance esperado según el público objetivo.",
       fitness: "Diseñar una rutina de entrenamiento adaptada al objetivo, nivel y disponibilidad de la persona.",
       promptEngineering: "Diseñar instrucciones para una IA que analice el código o los datos existentes antes de modificarlos, preserve el comportamiento que ya funciona y modifique únicamente lo estrictamente necesario, evitando inventar información no presente.",
-      procedureAdherence: "Diseñar instrucciones para un agente de IA que prioricen el procedimiento ya validado frente a explorar alternativas nuevas, evitando reintentos redundantes de enfoques que ya se sabe que no funcionan, y ejecutando la tarea de forma directa y consistente."
+      procedureAdherence: "Diseñar instrucciones para un agente de IA que prioricen el procedimiento ya validado frente a explorar alternativas nuevas, evitando reintentos redundantes de enfoques que ya se sabe que no funcionan, y ejecutando la tarea de forma directa y consistente.",
+      rrhh: "Orientar sobre el proceso o la política de recursos humanos planteada, con criterios objetivos y atención al marco laboral aplicable.",
+      inmobiliaria: "Orientar sobre la operación inmobiliaria planteada (tasación, venta, alquiler, inversión), señalando los pasos, documentación y agentes implicados.",
+      agricultura: "Orientar sobre el cuidado, cultivo o cosecha de las plantas/huerto planteado, adaptado a la especie, la época del año y el espacio disponible."
     },
     subGoalsBase: [
       "Comprender a fondo el contexto y las condiciones de la petición.",
@@ -566,7 +577,10 @@ const LANG_PACKS = {
         { objective: "Exigir análisis previo del código/datos existentes (dependencias, funciones, riesgos) antes de proponer cualquier cambio.", priority: "HIGH" },
         { objective: "Delimitar el cambio a lo estrictamente necesario, preservando el comportamiento ya validado y sin inventar elementos inexistentes.", priority: "HIGH" }
       ],
-      procedureAdherence: () => [{ objective: "Priorizar el procedimiento ya validado frente a explorar alternativas nuevas, evitando reintentar enfoques que ya se sabe que no funcionan.", priority: "HIGH" }]
+      procedureAdherence: () => [{ objective: "Priorizar el procedimiento ya validado frente a explorar alternativas nuevas, evitando reintentar enfoques que ya se sabe que no funcionan.", priority: "HIGH" }],
+      rrhh: () => [{ objective: "Estructurar el proceso o la política de RRHH con criterios objetivos y verificables, señalando implicaciones legales/laborales cuando aplique.", priority: "HIGH" }],
+      inmobiliaria: () => [{ objective: "Detallar los pasos, documentación y agentes implicados en la operación inmobiliaria planteada.", priority: "HIGH" }],
+      agricultura: () => [{ objective: "Determinar cuidados, época y condiciones adecuadas para la planta/cultivo/huerto planteado.", priority: "HIGH" }]
     },
     // Los nombres de capacidad se mantienen en inglés/mayúsculas en TODOS los
     // idiomas a propósito — son códigos internos del contrato, no prosa.
@@ -591,7 +605,10 @@ const LANG_PACKS = {
       marketing: ["MARKETING_STRATEGY", "CHANNEL_ANALYSIS"],
       fitness: ["WORKOUT_PROGRAMMING", "PROFESSIONAL_REFERRAL_AWARENESS"],
       promptEngineering: ["PROMPT_ENGINEERING", "SAFE_CODE_MODIFICATION"],
-      procedureAdherence: ["PROCEDURE_ADHERENCE", "CONSISTENT_EXECUTION"]
+      procedureAdherence: ["PROCEDURE_ADHERENCE", "CONSISTENT_EXECUTION"],
+      rrhh: ["TALENT_MANAGEMENT", "HR_COMPLIANCE"],
+      inmobiliaria: ["PROPERTY_VALUATION", "REAL_ESTATE_TRANSACTION"],
+      agricultura: ["CROP_CARE_GUIDANCE", "SEASONAL_PLANNING"]
     },
     ingredients: {
       formato: /\b(lista|tabla|un informe|un documento|email|correo|guion|resumen|esquema|paso a paso|código|imagen|power ?point|excel|pdf|puntos|apartados)\b/,
@@ -657,6 +674,9 @@ const LANG_PACKS = {
       fitness: /\b(training routine|workout\w*|exercise routine|work out|gym|strength and (endurance|mobility)|abs workout|stretching|weight(lifting)? routine)\b|play\w* sports?|want to exercise|start\w* (to )?exercis\w*|exercise (more|regularly)/,
       promptEngineering: /\b(prompt|instructions?) for (an |the )?(ai|aki).{0,50}(code|script|file|function|project)\b/,
       procedureAdherence: /\bplaybook\b|established procedure|documented procedure|proven procedure|avoid retrying (approaches|methods) that (dont|do not) work|follow the known procedure|(prompt|instructions?) for (an |the )?(ai|aki)\b|(aki|agent|amazon q).{0,80}(keeps? (trying|retrying)|gets? confused|tries the same thing again|doesnt learn)|what (should|do) i tell (aki|the ai|the agent)|(works|runs) (fine|well).{0,60}(isnt|is not|hasnt been) (debugged|tested|ready)|use the same (way|method|approach) (that|as)/,
+      rrhh: /\bhuman resources\b|performance review|performance evaluation|workplace climate|talent management|hiring process|employee onboarding|workplace conflict|training plan for employees/,
+      inmobiliaria: /\breal estate\b|appraise my (house|home|property)|property appraisal|sell my (house|home|property)|real estate agent|realtor|listing (my|the) (house|home|property)|invest\w* in (a house|a property|real estate)|renewable energy (construction|building) project/,
+      agricultura: /vegetable garden|gardening|\bsow(ing)?\b|harvest\w*|fertilizer|pest(s)? (in|on) (my|the) (garden|plants)|water\w* (my |the )?plants|take care of my garden/,
       offline: /\b(offline|no internet|no connection|no wifi)\b/,
       urgency: /\b(urgent|critical|asap|as soon as possible|in production|immediat\w*)\b/
     },
@@ -682,7 +702,10 @@ const LANG_PACKS = {
       marketing: "Propose a promotion or content strategy with channels, effort, and expected reach for the target audience.",
       fitness: "Design a workout routine adapted to the person's goal, level, and availability.",
       promptEngineering: "Design instructions for an AI that analyze existing code or data before modifying it, preserve behavior that already works, and change only what's strictly necessary, without inventing information that isn't present.",
-      procedureAdherence: "Design instructions for an AI agent that prioritize the already-validated procedure over exploring new alternatives, avoiding redundant retries of approaches already known not to work, and executing the task directly and consistently."
+      procedureAdherence: "Design instructions for an AI agent that prioritize the already-validated procedure over exploring new alternatives, avoiding redundant retries of approaches already known not to work, and executing the task directly and consistently.",
+      rrhh: "Provide guidance on the HR process or policy raised, with objective criteria and attention to applicable labor law.",
+      inmobiliaria: "Provide guidance on the real estate operation raised (appraisal, sale, rental, investment), indicating the steps, documentation, and parties involved.",
+      agricultura: "Provide guidance on the care, growing, or harvesting of the plants/garden raised, adapted to the species, season, and available space."
     },
     subGoalsBase: [
       "Fully understand the context and conditions of the request.",
@@ -732,7 +755,10 @@ const LANG_PACKS = {
         { objective: "Require prior analysis of the existing code/data (dependencies, functions, risks) before proposing any change.", priority: "HIGH" },
         { objective: "Scope the change to what's strictly necessary, preserving already-validated behavior without inventing nonexistent elements.", priority: "HIGH" }
       ],
-      procedureAdherence: () => [{ objective: "Prioritize the already-validated procedure over exploring new alternatives, avoiding retries of approaches already known not to work.", priority: "HIGH" }]
+      procedureAdherence: () => [{ objective: "Prioritize the already-validated procedure over exploring new alternatives, avoiding retries of approaches already known not to work.", priority: "HIGH" }],
+      rrhh: () => [{ objective: "Structure the HR process or policy with objective, verifiable criteria, noting legal/labor implications where applicable.", priority: "HIGH" }],
+      inmobiliaria: () => [{ objective: "Detail the steps, documentation, and parties involved in the real estate operation raised.", priority: "HIGH" }],
+      agricultura: () => [{ objective: "Determine appropriate care, timing, and conditions for the plant/crop/garden raised.", priority: "HIGH" }]
     },
     domainCapabilities: {
       hardwareSystem: ["REQUIREMENTS_ENGINEERING", "SYSTEM_ARCHITECTURE", "COMPONENT_ANALYSIS", "FEASIBILITY_ANALYSIS", "COST_ESTIMATION", "RISK_ANALYSIS"],
@@ -755,7 +781,10 @@ const LANG_PACKS = {
       marketing: ["MARKETING_STRATEGY", "CHANNEL_ANALYSIS"],
       fitness: ["WORKOUT_PROGRAMMING", "PROFESSIONAL_REFERRAL_AWARENESS"],
       promptEngineering: ["PROMPT_ENGINEERING", "SAFE_CODE_MODIFICATION"],
-      procedureAdherence: ["PROCEDURE_ADHERENCE", "CONSISTENT_EXECUTION"]
+      procedureAdherence: ["PROCEDURE_ADHERENCE", "CONSISTENT_EXECUTION"],
+      rrhh: ["TALENT_MANAGEMENT", "HR_COMPLIANCE"],
+      inmobiliaria: ["PROPERTY_VALUATION", "REAL_ESTATE_TRANSACTION"],
+      agricultura: ["CROP_CARE_GUIDANCE", "SEASONAL_PLANNING"]
     },
     ingredients: {
       formato: /\b(list|table|a report|a document|email|script|summary|outline|step by step|code|image|power ?point|excel|pdf|bullet points|sections)\b/,
@@ -792,7 +821,7 @@ const LANG_PACKS = {
   }
 };
 
-const DOMAIN_KEYS = ["hardwareSystem", "software", "purchaseCompare", "analysis", "writing", "learning", "planning", "legal", "salud", "finanzas", "industrial", "cooking", "education", "pets", "construction", "business", "marketing", "fitness", "promptEngineering", "procedureAdherence"];
+const DOMAIN_KEYS = ["hardwareSystem", "software", "purchaseCompare", "analysis", "writing", "learning", "planning", "legal", "salud", "finanzas", "industrial", "cooking", "education", "pets", "construction", "business", "marketing", "fitness", "promptEngineering", "procedureAdherence", "rrhh", "inmobiliaria", "agricultura"];
 
 // Heurística de detección de idioma: cuenta palabras funcionales frecuentes
 // de cada paquete; en empate o texto vacío, gana español (idioma nativo de
@@ -1899,7 +1928,7 @@ const ejecutarTestsV401 = async () => {
     { id: "R-059", name: "Regresión corpus real (petición #59)", in: "hazme una rutina de abdominales de 10 minutos q pueda hacer en casa sin material y q no me joda las lumbares q las tengo delicadas.", assert: r => !r.error && r.ir.capabilityPlan.required.join(',') === "RESEARCH,INFORMATION_SYNTHESIS,DECISION_ANALYSIS,WORKOUT_PROGRAMMING,PROFESSIONAL_REFERRAL_AWARENESS" },
     { id: "R-060", name: "Regresión corpus real (petición #60)", in: "como se si una multa de trafico me quita puntos o solo es de pagar, me pillaron a 130 en una zona de 100 y quiero saber q me va a llegar.", assert: r => !r.error && r.ir.capabilityPlan.required.join(',') === "RESEARCH,INFORMATION_SYNTHESIS,DECISION_ANALYSIS,LEGAL_RESEARCH,COMPLIANCE_ANALYSIS" },
     { id: "R-061", name: "Regresión corpus real (petición #61)", in: "redactame el texto para una invitacion de boda q sea algo gracioso, q ponga q es en la finca los rosales a las 18:00 y q confirmen antes de mayo.", assert: r => !r.error && r.ir.capabilityPlan.required.join(',') === "RESEARCH,INFORMATION_SYNTHESIS,DECISION_ANALYSIS,WRITING,STRUCTURE_DESIGN" },
-    { id: "R-062", name: "Regresión corpus real (petición #62)", in: "quiero montar un huerto urbano en el balcon q le da el sol por la mañana, dime q plantar ahora en primavera y cuanta agua echarle a la semana.", assert: r => !r.error && r.ir.capabilityPlan.required.join(',') === "RESEARCH,INFORMATION_SYNTHESIS,DECISION_ANALYSIS,REQUIREMENTS_ENGINEERING,SYSTEM_ARCHITECTURE,COMPONENT_ANALYSIS,FEASIBILITY_ANALYSIS,COST_ESTIMATION,RISK_ANALYSIS" },
+    { id: "R-062", name: "Regresión corpus real (petición #62) — valor actualizado tras fix v471 (nuevo dominio 'agricultura': 'huerto' ahora activa CROP_CARE_GUIDANCE/SEASONAL_PLANNING)", in: "quiero montar un huerto urbano en el balcon q le da el sol por la mañana, dime q plantar ahora en primavera y cuanta agua echarle a la semana.", assert: r => !r.error && r.ir.capabilityPlan.required.join(',') === "RESEARCH,INFORMATION_SYNTHESIS,DECISION_ANALYSIS,REQUIREMENTS_ENGINEERING,SYSTEM_ARCHITECTURE,COMPONENT_ANALYSIS,FEASIBILITY_ANALYSIS,COST_ESTIMATION,RISK_ANALYSIS,CROP_CARE_GUIDANCE,SEASONAL_PLANNING" },
     { id: "R-063", name: "Regresión corpus real (petición #63)", in: "preparame 5 preguntas para una entrevista a un chico q va a entrar de soporte tecnico informatico, q sean de como trata con clientes enfadados.", assert: r => !r.error && r.ir.capabilityPlan.required.join(',') === "RESEARCH,INFORMATION_SYNTHESIS,DECISION_ANALYSIS,WRITING,STRUCTURE_DESIGN" },
     { id: "R-064", name: "Regresión corpus real (petición #64)", in: "explícame como se hace para conectar la switch a internet usando los datos del movil pq se me a caido el wifi de casa y quiero jugar online.", assert: r => !r.error && r.ir.capabilityPlan.required.join(',') === "RESEARCH,INFORMATION_SYNTHESIS,DECISION_ANALYSIS" },
     { id: "R-065", name: "Regresión corpus real (petición #65)", in: "hazme un resumen de las funciones q hace un auxiliar administrativo pa ponerlo en el curriculum, pero q parezca q tenia mucha responsabilidad.", assert: r => !r.error && r.ir.capabilityPlan.required.join(',') === "RESEARCH,INFORMATION_SYNTHESIS,DECISION_ANALYSIS,WRITING,STRUCTURE_DESIGN,CRITICAL_ANALYSIS,RISK_ANALYSIS" },
@@ -1977,7 +2006,7 @@ const ejecutarTestsV401 = async () => {
     { id: "R-137", name: "Regresión corpus real (petición #137)", in: "quiero saber los requisitos pa apuntar a mi hijo a la guarderia publica este curso que viene.", assert: r => !r.error && r.ir.capabilityPlan.required.join(',') === "RESEARCH,INFORMATION_SYNTHESIS,DECISION_ANALYSIS" },
     { id: "R-138", name: "Regresión corpus real (petición #138)", in: "hazme una funcion python que ordene una lista de diccionarios por la clave edad de mayor a menor.", assert: r => !r.error && r.ir.capabilityPlan.required.join(',') === "RESEARCH,INFORMATION_SYNTHESIS,DECISION_ANALYSIS,SOFTWARE_DESIGN,IMPLEMENTATION,TESTING" },
     { id: "R-139", name: "Regresión corpus real (petición #139)", in: "como se limpia el filtro de la lavadora, llevo tiempo sin hacerlo y huele un poco raro la ropa.", assert: r => !r.error && r.ir.capabilityPlan.required.join(',') === "RESEARCH,INFORMATION_SYNTHESIS,DECISION_ANALYSIS" },
-    { id: "R-140", name: "Regresión corpus real (petición #140)", in: "redactame un correo pidiendo referencias laborales de un antiguo empleado pa un proceso de seleccion.", assert: r => !r.error && r.ir.capabilityPlan.required.join(',') === "RESEARCH,INFORMATION_SYNTHESIS,DECISION_ANALYSIS,WRITING,STRUCTURE_DESIGN" },
+    { id: "R-140", name: "Regresión corpus real (petición #140) — valor actualizado tras fix v471 (nuevo dominio 'rrhh': 'proceso de selección' ahora activa TALENT_MANAGEMENT/HR_COMPLIANCE)", in: "redactame un correo pidiendo referencias laborales de un antiguo empleado pa un proceso de seleccion.", assert: r => !r.error && r.ir.capabilityPlan.required.join(',') === "RESEARCH,INFORMATION_SYNTHESIS,DECISION_ANALYSIS,WRITING,STRUCTURE_DESIGN,TALENT_MANAGEMENT,HR_COMPLIANCE" },
     { id: "R-141", name: "Regresión corpus real (petición #141)", in: "dime cual es mejor para el suelo de una cocina, porcelanico o gres, teniendo en cuenta que se moja mucho.", assert: r => !r.error && r.ir.capabilityPlan.required.join(',') === "RESEARCH,INFORMATION_SYNTHESIS,DECISION_ANALYSIS" },
     { id: "R-142", name: "Regresión corpus real (petición #142)", in: "necesito armar un plan de estudio pa preparar un examen de oposicion en 3 meses, dedicando 2 horas al dia.", assert: r => !r.error && r.ir.capabilityPlan.required.join(',') === "RESEARCH,INFORMATION_SYNTHESIS,DECISION_ANALYSIS,CRITICAL_ANALYSIS,RISK_ANALYSIS,ACADEMIC_WRITING,SUBJECT_RESEARCH" },
     { id: "R-143", name: "Regresión corpus real (petición #143)", in: "quiero q me expliques que es el sobreentrenamiento y como se si lo estoy sufriendo con mi rutina actual.", assert: r => !r.error && r.ir.capabilityPlan.required.join(',') === "RESEARCH,INFORMATION_SYNTHESIS,DECISION_ANALYSIS" },
@@ -2181,6 +2210,17 @@ const ejecutarTestsV401 = async () => {
     { id: "T-233", name: "hardwareSystem ES sigue reconociendo 'sistema operativo'/'sistema automático' tras el fix (no regresión v470, caso original T-02)", in: "Quiero crear un sistema automático para controlar el nivel de agua de un depósito", assert: r => !r.error && r.ir.capabilityPlan.required.includes("SYSTEM_ARCHITECTURE") },
     { id: "T-234", name: "hardwareSystem EN 'solar system'/'nervous system' excluidos con lookbehind (el adjetivo va ANTES en inglés, al revés que en español) (fix v470)", in: "The solar system has 8 planets and one dwarf planet", assert: r => !r.error && !r.ir.capabilityPlan.required.includes("SYSTEM_ARCHITECTURE") },
     { id: "T-235", name: "hardwareSystem EN sigue reconociendo 'automatic system' tras el fix del lookbehind (no regresión v470)", in: "I want to create an automatic system to control the water level of a tank", assert: r => !r.error && r.ir.capabilityPlan.required.includes("SYSTEM_ARCHITECTURE") },
+    { id: "T-236", name: "Nuevo dominio 'rrhh' ES/EN reconoce 'evaluación de desempeño'/'performance review' (fix v471, dominio añadido tras diagnóstico + confirmación explícita del usuario de uso real)", in: "Cómo hago una evaluación de desempeño justa para los 5 miembros de mi equipo", assert: r => !r.error && r.ir.capabilityPlan.required.includes("TALENT_MANAGEMENT") },
+    { id: "T-237", name: "rrhh EN reconoce 'performance review', paridad (fix v471)", in: "How do I do a fair performance review for my team of 5", assert: r => !r.error && r.ir.capabilityPlan.required.includes("TALENT_MANAGEMENT") },
+    { id: "T-238", name: "Nuevo dominio 'inmobiliaria' ES/EN reconoce 'tasar mi piso'/'appraise my house' (fix v471)", in: "Quiero tasar mi piso antes de ponerlo a la venta", assert: r => !r.error && r.ir.capabilityPlan.required.includes("PROPERTY_VALUATION") },
+    { id: "T-239", name: "inmobiliaria EN reconoce 'appraise my house', paridad (fix v471)", in: "I want to appraise my house before selling it", assert: r => !r.error && r.ir.capabilityPlan.required.includes("PROPERTY_VALUATION") },
+    { id: "T-240", name: "inmobiliaria ES reconoce la faceta de inversión con energías renovables mencionada explícitamente por el usuario (fix v471)", in: "Quiero invertir en un piso para reformarlo con energías renovables", assert: r => !r.error && r.ir.capabilityPlan.required.includes("PROPERTY_VALUATION") },
+    { id: "T-241", name: "construction ES 'reformar mi piso' NO dispara inmobiliaria sin mención de tasación/venta/inversión (sin colisión entre los dos dominios) (fix v471)", in: "Necesito reformar mi piso, cambiar suelos y pintar", assert: r => !r.error && !r.ir.capabilityPlan.required.includes("PROPERTY_VALUATION") },
+    { id: "T-242", name: "Nuevo dominio 'agricultura' ES/EN reconoce 'huerto'/'vegetable garden' (fix v471, confirmado por el usuario: 'me gustan las plantas y tengo jardín y huerto')", in: "Quiero montar un huerto en el jardín de mi casa", assert: r => !r.error && r.ir.capabilityPlan.required.includes("CROP_CARE_GUIDANCE") },
+    { id: "T-243", name: "agricultura EN reconoce 'vegetable garden', paridad (fix v471)", in: "I want to start a vegetable garden this spring", assert: r => !r.error && r.ir.capabilityPlan.required.includes("CROP_CARE_GUIDANCE") },
+    { id: "T-244", name: "agricultura ES reconoce 'sembrar', verbo agrícola común (fix v471)", in: "Cuándo es la mejor época para sembrar trigo en clima mediterráneo", assert: r => !r.error && r.ir.capabilityPlan.required.includes("CROP_CARE_GUIDANCE") },
+    { id: "T-245", name: "agricultura ES/EN NO colisiona con 'jardín de infancia'/'kindergarten' (guardería, dominio educación, nada que ver con jardinería) (fix v471)", in: "Quiero apuntar a mi hijo al jardín de infancia el año que viene", assert: r => !r.error && !r.ir.capabilityPlan.required.includes("CROP_CARE_GUIDANCE") },
+    { id: "T-246", name: "agricultura EN NO colisiona con 'kindergarten' (paridad del anti-colisión, fix v471)", in: "I want to enroll my son in kindergarten next year", assert: r => !r.error && !r.ir.capabilityPlan.required.includes("CROP_CARE_GUIDANCE") },
   ];
 
   let passed = 0;
