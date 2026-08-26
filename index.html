@@ -648,7 +648,7 @@ const LANG_PACKS = {
       salud: /\b(health|diet|symptom\w*|doctor|illness|disease|vet(?!eran)\w*|pain\w*|hurt\w*|fever|headache|nause\w*|vomit\w*|cough\w*|stress\w*|anxiet\w*|insomnia)\b|sleep quality|sleep habits|sleep (better|worse)/,
       finanzas: /\b(sav(?!age)\w*|budget|mortgage|loan|invest(?:s|ed|ing|ment|ments)?|debt|tax(?!i)\w*|financ\w*|vat|invoice\w*)\b|compound interest|profit margin|gross margin|net margin/,
       industrial: /\b(diesel engine|machinery|industrial machine\w*|mechanical maintenance|mechanical (failure|breakdown)|spare part|car (won't|wont|doesn't|does not) start|car broke down|repair shop|mechanic|hydraulic press|air compressor)\b|oil change|change (the |my )?oil/,
-      cooking: /\b(recipe\w*|cooking|cooked|bake\w*|ingredients for|homemade dish)\b|how (do|to) (i )?(cook|prepare)|how (do|to) (i )?make.{0,20}(cake|dish|recipe|dinner|meal|dessert|pie)|meal plan|weekly menu|tasting menu/,
+      cooking: /\b(recipe\w*|cooking|cooked|bake\w*|stew\w*|ingredients for|homemade dish)\b|how (do|to) (i )?(cook|prepare)|how (do|to) (i )?make.{0,20}(cake|dish|recipe|dinner|meal|dessert|pie)|meal plan|weekly menu|tasting menu|i (love|like) to cook|i cook (for|every)/,
       education: /\b(homework|school (assignment|project)|essay (due|for school)|exam\w*|due (for|by) (class|school)|assignment (due|for class))\b/,
       pets: /\b(my (dog|cat|pet|puppy|kitten|fish)|(train|training) (my|a) (dog|puppy)|vet(?!eran)\w*)\b|dog breed|cat breed/,
       construction: /\b(terrace|patio (cover|roof)|pergola\w*|countertop\w*|tile\w*|renovat\w*|remodel\w*|waterproof\w*)\b|block wall|wall of blocks|cans? of paint|paint a room|load.bearing wall|wall is load.bearing/,
@@ -2172,6 +2172,8 @@ const ejecutarTestsV401 = async () => {
     { id: "T-224", name: "planning EN reconoce 'organizing a wedding/move/party' y 'planning an event', paridad con ES (fix v467, ciclo 12)", in: "I am organizing a wedding for next summer and need help", assert: r => !r.error && r.ir.capabilityPlan.required.includes("PLANNING") },
     { id: "T-225", name: "planning EN 'event' se restringe a frase compuesta ('plan/organize an event'), no palabra suelta, para no colisionar con 'event listener' de programación (fix v467)", in: "I need to add an event listener to this button in javascript", assert: r => !r.error && !r.ir.capabilityPlan.required.includes("PLANNING") },
     { id: "T-226", name: "industrial ES reconoce 'prensa hidráulica'/'compresor de aire', paridad con el fix EN 'hydraulic press'/'air compressor' del ciclo 2 (fix v467)", in: "La prensa hidráulica del taller pierde presión cada poco", assert: r => !r.error && r.ir.capabilityPlan.required.includes("TECHNICAL_DIAGNOSIS") },
+    { id: "T-227", name: "cooking EN reconoce 'stew' (guiso), paridad con ES; 'I love/like to cook' reconocido via frase compuesta, NO palabra suelta 'cook' (T-71 ya documentaba que 'cook' sola colisiona con la profesión/sustantivo 'the cook') (fix v468, ciclo 12 cont.)", in: "I want to make a beef stew for winter, any tips", assert: r => !r.error && r.ir.capabilityPlan.required.includes("RECIPE_DEVELOPMENT") },
+    { id: "T-228", name: "cooking EN 'I love to cook' reconocido sin reabrir la colisión de 'cook' suelta (no regresión de T-71, fix v468)", in: "I love to cook for my family every Sunday, it relaxes me", assert: r => !r.error && r.ir.capabilityPlan.required.includes("RECIPE_DEVELOPMENT") },
   ];
 
   let passed = 0;
