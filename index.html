@@ -1247,7 +1247,7 @@ const SerializerSystem = {
 :: TASK_ID = ${ir.requestId}
 :: STATUS = ${ir.validation.status} (${passedCount}/${ir.validation.checks.length})
 :: ANALYSIS_SOURCE = ${u.source === 'ai' ? 'ai (comprensión semántica real)' : 'local (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${u.aiFallbackReason}]` : ''}
-:: LANGUAGE = ${u.lang || 'es'}
+:: LANGUAGE = ${u.lang || 'es'}${u.imageAnalyzed ? '\n:: IMAGE_ATTACHED = sí, analizada por la IA junto con el texto' : ''}
 
 :: EXPLICIT_GOAL
 > ${u.explicitGoal.replace(/\n/g, '\n> ')}
@@ -1327,7 +1327,7 @@ ${ir.artifacts.base ? `ARTEFACTO BASE (v1):\n${ir.artifacts.base}\n` : ''}${ir.a
 -----------------------------------
 TASK ID: ${ir.requestId}
 FUENTE DEL ANÁLISIS SEMÁNTICO: ${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${u.aiFallbackReason}]` : ''}
-IDIOMA DE ANÁLISIS: ${u.lang || 'es'}
+IDIOMA DE ANÁLISIS: ${u.lang || 'es'}${u.imageAnalyzed ? '\nIMAGEN ADJUNTA: sí, analizada por la IA junto con el texto de la petición' : ''}
 
 1. UNIVERSAL REQUEST UNDERSTANDING
 ----------------------------------
@@ -1413,6 +1413,7 @@ ${artifactsSection}
 
   <analysis_source method="${u.source}">${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${escXml(u.aiFallbackReason)}]` : ''}</analysis_source>
   <analysis_language>${escXml(u.lang || 'es')}</analysis_language>
+  ${u.imageAnalyzed ? '<image_attached>sí, analizada por la IA junto con el texto de la petición</image_attached>' : ''}
 
   <request_understanding>
     <explicit_goal>${escXml(u.explicitGoal)}</explicit_goal>
@@ -1506,7 +1507,7 @@ ${ir.artifacts.base ? (() => { const f = mdFenceFor(ir.artifacts.base); return `
 
 ## 0. Fuente del análisis
 **Task ID:** ${ir.requestId}
-**Fuente del análisis semántico:** ${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${u.aiFallbackReason}]` : ''}
+**Fuente del análisis semántico:** ${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${u.aiFallbackReason}]` : ''}${u.imageAnalyzed ? '\n**Imagen adjunta:** sí, analizada por la IA junto con el texto de la petición' : ''}
 **Idioma de análisis:** ${u.lang || 'es'}
 
 ## 1. Comprensión de la petición
@@ -1577,7 +1578,7 @@ ${artifactsMd}
       ? `ARTIFACTS: base=${ir.artifacts.base ? 'provided' : 'none'}; modified=${ir.artifacts.modified ? 'provided' : 'none'} (ver adapter GENERIC/CLAUDE/CHATGPT/AKI para el contenido completo)\n`
       : '';
 
-    return `TASK[${ir.requestId}] SRC=${u.source}${u.aiFallbackReason ? `(fallback:${u.aiFallbackReason})` : ''} LANG=${u.lang || 'es'} STATUS=${ir.validation.status} (${passedCount}/${ir.validation.checks.length})
+    return `TASK[${ir.requestId}] SRC=${u.source}${u.aiFallbackReason ? `(fallback:${u.aiFallbackReason})` : ''} LANG=${u.lang || 'es'}${u.imageAnalyzed ? ' IMG=sí' : ''} STATUS=${ir.validation.status} (${passedCount}/${ir.validation.checks.length})
 GOAL.explicit="${u.explicitGoal.replace(/\n/g, ' ')}"
 GOAL.inferred="${u.inferredGoal}"
 OUTCOME="${u.desiredOutcome}"
@@ -1611,6 +1612,12 @@ const compilarV401 = async (input, artifactText, modifiedText, adapter, apiKeyCl
       // del equipo.
       try {
         understanding = await aiUnderstandingDual(input, apiKeyClaude, apiKeyGemini, signal, imageData);
+        // Fix v494: transparencia — igual que aiFallbackReason viaja pegado al
+        // understanding para que los serializadores lo impriman, esto deja
+        // constancia en el contrato final de que una imagen formó parte real
+        // del análisis (antes no quedaba ningún rastro de ello en el texto
+        // compilado, solo se reflejaba indirectamente en el contenido).
+        if (imageData) understanding.imageAnalyzed = true;
         logTrace("INTELLIGENCE", `Comprensión semántica por IA. Goal: [${understanding.inferredGoal}]`);
       } catch (e) {
         // Una cancelación del usuario (botón "Cancelar generación") no es un
@@ -2774,6 +2781,22 @@ const ejecutarTestsV401 = async () => {
         window.fetch = (url, opts) => { body = JSON.parse(opts.body); return Promise.resolve({ ok: true, json: async () => ({ content: [{ text: JSON.stringify({ explicitGoal:"x", inferredGoal:"y", desiredOutcome:"z", userPreferences:[], userConstraints:[], deliverablesExpected:["a"], subGoals:[{id:"SG-01",objective:"o",priority:"HIGH"}], requiredCapabilities:["T"], ambiguities:[] }) }] }) }); };
         try { await aiUnderstandingDual("t", "sk-ant-fake", "", undefined); } finally { window.fetch = of; }
         return typeof body.messages[0].content === "string" && body.messages[0].content === "t" && !body.system.includes("imagen");
+      } },
+    { id: "T-AI-12", name: "Transparencia: el contrato final declara 'IMAGEN ADJUNTA' cuando la IA analizó una foto, en los 5 formatos de salida (fix v494, ciclo 19)", run: async () => {
+        const of = window.fetch;
+        window.fetch = () => Promise.resolve({ ok: true, json: async () => ({ content: [{ text: JSON.stringify({ explicitGoal:"x", inferredGoal:"y", desiredOutcome:"z", userPreferences:[], userConstraints:[], deliverablesExpected:["a"], subGoals:[{id:"SG-01",objective:"o",priority:"HIGH"}], requiredCapabilities:["T"], ambiguities:[] }) }] }) });
+        const fakeImage = { data: "ZmFrZQ==", mediaType: "image/jpeg" };
+        let ok = true;
+        try {
+          for (const adapter of ["GENERIC", "AKI", "CLAUDE", "CHATGPT", "LOCAL"]) {
+            const withImg = await compilarV401("t", "", "", adapter, "sk-ant-fake", "", "es", undefined, fakeImage);
+            const noImg = await compilarV401("t", "", "", adapter, "sk-ant-fake", "", "es", undefined, null);
+            const mentionsImage = /imagen adjunta|image_attached|img=s[ií]/i.test(withImg.executablePrompt);
+            const silentWithoutImage = !/imagen adjunta|image_attached|img=s[ií]/i.test(noImg.executablePrompt);
+            if (!mentionsImage || !silentWithoutImage) ok = false;
+          }
+        } finally { window.fetch = of; }
+        return ok;
       } },
   ];
   for (const t of aiTests) {
