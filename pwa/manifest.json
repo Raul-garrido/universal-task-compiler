@@ -1,0 +1,17 @@
+{
+  "name": "Generador de Prompt Universal",
+  "short_name": "Prompt Universal",
+  "description": "Compilador semántico de tareas en lenguaje natural a contratos de prompt estructurados, con o sin IA.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#020408",
+  "theme_color": "#0d1117",
+  "orientation": "any",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
