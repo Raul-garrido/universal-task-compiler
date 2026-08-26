@@ -412,7 +412,12 @@ const renderHistory = () => {
 };
 const loadFromHistory = i => {
   const item = getHistory()[i];
-  if(item) { if($('userRequest')) $('userRequest').value = item.request || ""; if($('executablePrompt')) $('executablePrompt').textContent = item.executablePrompt || ""; switchTab('tab-prompt'); }
+  // Fix v494: el historial nunca guarda la imagen (por diseño, ver
+  // saveToHistory) — así que cargar una petición antigua dejaba
+  // atrás cualquier foto adjunta actual, sin relación con ese texto
+  // viejo. Si se volvía a pulsar "Crear Prompt" desde ahí, esa foto
+  // (de una petición distinta) se colaba en la compilación.
+  if(item) { if($('userRequest')) $('userRequest').value = item.request || ""; if($('executablePrompt')) $('executablePrompt').textContent = item.executablePrompt || ""; clearAttachedImage(); switchTab('tab-prompt'); }
 };
 
 // ==========================================
@@ -2860,6 +2865,21 @@ const ejecutarTestsV401 = async () => {
           attachedImage = savedImg;
           if ($('imageAttachedInfo')) $('imageAttachedInfo').style.display = savedInfoDisplay || "none";
           if ($('userRequest')) $('userRequest').value = savedRequest || "";
+        }
+      } },
+    { id: "T-AI-16", name: "Cargar una petición del historial limpia cualquier imagen adjunta actual — el historial nunca guarda fotos, no debe colarse una imagen de otra petición (bug real, fix v494)", run: async () => {
+        const savedImg = attachedImage, savedInfoDisplay = $('imageAttachedInfo')?.style.display, savedRequest = $('userRequest')?.value, savedHistory = localStorage.getItem(STORAGE_KEY);
+        try {
+          attachedImage = { data: "ZmFrZQ==", mediaType: "image/jpeg" };
+          if ($('imageAttachedInfo')) $('imageAttachedInfo').style.display = "block";
+          saveToHistory({ timestamp: Date.now(), request: "peticion vieja de prueba", validation: { status: "VALIDATED" }, executablePrompt: "prompt viejo" });
+          loadFromHistory(0);
+          return attachedImage === null && $('imageAttachedInfo')?.style.display === "none" && $('userRequest')?.value === "peticion vieja de prueba";
+        } finally {
+          attachedImage = savedImg;
+          if ($('imageAttachedInfo')) $('imageAttachedInfo').style.display = savedInfoDisplay || "none";
+          if ($('userRequest')) $('userRequest').value = savedRequest || "";
+          if (savedHistory) localStorage.setItem(STORAGE_KEY, savedHistory); else localStorage.removeItem(STORAGE_KEY);
         }
       } },
   ];
