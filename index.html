@@ -72,7 +72,10 @@
         <div class="highlight-request-box">
           <div class="label-header">
             <label for="userRequest" style="color: #58a6ff; margin-top: 0;">📝 Petición Humana / Tarea Multidominio</label>
-            <button class="help-btn" onclick="toggleHelp('helpRequest')" title="Ayuda">?</button>
+            <span style="display:flex;align-items:center;gap:6px;">
+              <button type="button" id="btnMic" onclick="toggleDictado()" title="Dictar por micrófono" style="display:none;background:#1f6feb;color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:11px;cursor:pointer;align-items:center;justify-content:center;padding:0;margin:0;">🎤</button>
+              <button class="help-btn" onclick="toggleHelp('helpRequest')" title="Ayuda">?</button>
+            </span>
           </div>
           <div class="help-tooltip" id="helpRequest">
             <b>Definición:</b> Introduce cualquier tarea en lenguaje natural, de cualquier materia, aunque no sepas nada de IA ni de "prompts". Por defecto el análisis es 100% local (sin conexión a internet ni API key): detecta qué te falta especificar (formato, tono, público, restricciones...) y te lo pregunta, para ayudarte a construir un prompt eficaz paso a paso.
@@ -292,6 +295,60 @@ const copyContent = async elementId => {
 };
 
 const toggleHelp = helpId => { const el = $(helpId); if (el) el.style.display = el.style.display === 'block' ? 'none' : 'block'; };
+
+// Dictado por micrófono (Web Speech API). Solo se muestra el botón si el
+// navegador la soporta (Chrome/Edge/Android van bien; Safari/iOS lo
+// soporta desde la 14.1 pero con más limitaciones) — feature-detect en
+// window.onload, nunca se asume soporte.
+const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognizer = null;
+let dictando = false;
+
+const langParaDictado = () => {
+  const sel = $('requestLanguage')?.value || "auto";
+  if (sel === "en") return "en-US";
+  if (sel === "es") return "es-ES";
+  return (navigator.language || "es-ES").startsWith("en") ? "en-US" : "es-ES";
+};
+
+const toggleDictado = () => {
+  const btn = $('btnMic');
+  if (!SpeechRecognitionAPI || !btn) return;
+
+  if (dictando) { recognizer?.stop(); return; }
+
+  recognizer = new SpeechRecognitionAPI();
+  recognizer.lang = langParaDictado();
+  recognizer.interimResults = false;
+  recognizer.continuous = false;
+
+  recognizer.onstart = () => {
+    dictando = true;
+    btn.textContent = "⏺️";
+    btn.title = "Escuchando... (pulsa para detener)";
+    btn.style.background = "var(--bad)";
+  };
+  recognizer.onresult = (event) => {
+    const texto = Array.from(event.results).map(r => r[0].transcript).join(" ").trim();
+    const campo = $('userRequest');
+    if (campo && texto) {
+      campo.value = campo.value.trim() ? `${campo.value.trim()} ${texto}` : texto;
+    }
+  };
+  recognizer.onerror = (event) => {
+    if (event.error !== "no-speech" && event.error !== "aborted") {
+      logTrace("SYS", `Dictado por micrófono: error (${event.error}).`, "warn");
+    }
+  };
+  recognizer.onend = () => {
+    dictando = false;
+    btn.textContent = "🎤";
+    btn.title = "Dictar por micrófono";
+    btn.style.background = "#1f6feb";
+  };
+
+  try { recognizer.start(); } catch (e) {}
+};
 
 const clearRequestOnly = () => { if($('userRequest')) $('userRequest').value = ""; logTrace("SYS", "Petición borrada.", "info"); };
 const clearAllInputs = () => {
@@ -2530,6 +2587,7 @@ const ejecutarTestsV401 = async () => {
 window.onload = () => {
   renderHistory();
   updateApiKeyStatusDot();
+  if (SpeechRecognitionAPI && $('btnMic')) $('btnMic').style.display = "inline-flex";
   logTrace("SYS", "Universal Semantic Task Compiler V401 (AI-Core) inicializado correctamente.");
 };
 </script>
