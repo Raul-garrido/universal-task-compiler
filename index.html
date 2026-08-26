@@ -2798,6 +2798,18 @@ const ejecutarTestsV401 = async () => {
         } finally { window.fetch = of; }
         return ok;
       } },
+    { id: "T-AI-13", name: "Artefacto de código + imagen adjunta a la vez: ambos llegan correctamente (al contrato y a la IA), sin interferir entre sí (ciclo 19, verificación cruzada)", run: async () => {
+        const of = window.fetch;
+        let body = null;
+        window.fetch = (url, opts) => { body = JSON.parse(opts.body); return Promise.resolve({ ok: true, json: async () => ({ content: [{ text: JSON.stringify({ explicitGoal:"x", inferredGoal:"y", desiredOutcome:"z", userPreferences:[], userConstraints:[], deliverablesExpected:["a"], subGoals:[{id:"SG-01",objective:"o",priority:"HIGH"}], requiredCapabilities:["T"], ambiguities:[] }) }] }) }); };
+        const fakeImage = { data: "ZmFrZQ==", mediaType: "image/jpeg" };
+        let r;
+        try {
+          r = await compilarV401("este boton no se ve bien en modo oscuro", "<button class='btn'>Hola</button>", "", "GENERIC", "sk-ant-fake", "", "es", undefined, fakeImage);
+        } finally { window.fetch = of; }
+        return r.executablePrompt.includes("ARTEFACTO BASE") && r.executablePrompt.includes("btn") && r.executablePrompt.includes("IMAGEN ADJUNTA")
+          && Array.isArray(body.messages[0].content) && body.messages[0].content.some(b => b.type === "image");
+      } },
   ];
   for (const t of aiTests) {
     let ok = false;
