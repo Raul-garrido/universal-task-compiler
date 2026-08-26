@@ -1735,7 +1735,16 @@ const updateApiKeyStatusDot = () => {
     camBtn.style.opacity = hasKey ? '1' : '0.5';
     camBtn.title = hasKey ? 'Adjuntar foto (la analiza la IA junto con tu petición)' : 'Sin API key: introduce una key de Claude o Gemini en «Avanzado» para poder adjuntar una imagen';
   }
-  if (!hasKey) clearAttachedImage();
+  // Fix v494: ya NO se limpia la imagen aquí solo por no tener key en este
+  // instante. Esta función se llama en cada pulsación de tecla del campo de
+  // key (oninput) — borrar el campo un momento para pegar una key nueva
+  // vaciaba el valor un instante y esto borraba la foto ya adjunta sin
+  // avisar, aunque el usuario fuera a pegar la key correcta acto seguido
+  // (bug real encontrado en pruebas). No hace falta este borrado anticipado
+  // de todos modos: compilarV401 ya solo envía la imagen si usandoIA es
+  // cierto, y clearAttachedImage() ya se ejecuta siempre al terminar
+  // cualquier compilación — el caso "compilar en local sin key" nunca llega
+  // a usar ni filtrar la imagen adjunta.
 };
 
 // Imagen adjunta para que la IA la analice junto con la petición (petición
@@ -2809,6 +2818,25 @@ const ejecutarTestsV401 = async () => {
         } finally { window.fetch = of; }
         return r.executablePrompt.includes("ARTEFACTO BASE") && r.executablePrompt.includes("btn") && r.executablePrompt.includes("IMAGEN ADJUNTA")
           && Array.isArray(body.messages[0].content) && body.messages[0].content.some(b => b.type === "image");
+      } },
+    { id: "T-AI-14", name: "Editar momentáneamente el campo de la key (p. ej. para pegar una nueva) ya NO borra la foto ya adjunta (bug real, fix v494)", run: async () => {
+        const savedKey = $('apiKeyClaude')?.value, savedImg = attachedImage, savedInfoDisplay = $('imageAttachedInfo')?.style.display;
+        try {
+          if ($('apiKeyClaude')) $('apiKeyClaude').value = "sk-ant-old";
+          updateApiKeyStatusDot();
+          attachedImage = { data: "ZmFrZQ==", mediaType: "image/jpeg" };
+          if ($('apiKeyClaude')) $('apiKeyClaude').value = "";
+          updateApiKeyStatusDot();
+          const survivedMomentaryEdit = attachedImage !== null;
+          if ($('apiKeyClaude')) $('apiKeyClaude').value = "sk-ant-new";
+          updateApiKeyStatusDot();
+          return survivedMomentaryEdit && attachedImage !== null;
+        } finally {
+          if ($('apiKeyClaude')) $('apiKeyClaude').value = savedKey || "";
+          attachedImage = savedImg;
+          if ($('imageAttachedInfo')) $('imageAttachedInfo').style.display = savedInfoDisplay || "none";
+          updateApiKeyStatusDot();
+        }
       } },
   ];
   for (const t of aiTests) {
