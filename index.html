@@ -486,7 +486,7 @@ const LANG_PACKS = {
       education: /\b(deberes|trabajo (escolar|de clase|de historia|de ciencias|de literatura)|examen\w*|tarea (escolar|académica)|redacción escolar|trabajo para (el|la) (colegio|instituto|universidad))\b/,
       pets: /\b(mi (perro|gato|mascota|perra|gata)|adiestr\w*|veterinari\w*|cachorro\w*)\b|raza de (perro|gato)/,
       construction: /\b(terraza\w*|pérgola\w*|encimera\w*|azulejo\w*|revestir|panel sándwich|policarbonato|bloques de hormigón|reforma\w*|albañil\w*|impermeabiliz\w*)\b|(muro|pared) de bloques|botes? de pintura|pintar (una|un) (habitaci[oó]n|sal[oó]n|piso)/,
-      business: /\b(crear (una|mi) (pequeña )?empresa|abrir (una|mi) empresa|montar (un|una) negocio|emprender|mi (nuevo )?negocio|tengo (un|una) (pequeño |pequeña )?(negocio|empresa)|primeros clientes|modelo de negocio|plan de negocio)\b/,
+      business: /\b(crear (una|mi) (pequeña )?empresa|abrir (una|mi) empresa|montar (un|una) negocio|emprender|mi (nuevo )?negocio|tengo (un|una) (pequeño |pequeña )?(negocio|empresa)|primeros clientes|modelo de negocio|plan de negocio|mi startup|business plan)\b/,
       marketing: /\b(promocionar|promoción\w*|estrategia de contenido|redes sociales.{0,20}(blog|alcance)|estrategia de marketing|plan de marketing|campaña de marketing|marketing digital|posicionamiento (seo|web)|estrategia para promocionar)\b/,
       fitness: /\b(entrenamiento\w*|entrenar|rutina de ejercicio\w*|hacer ejercicio|gimnasio|fuerza y resistencia|hacer deporte|abdominales|estiramientos)\b|estirar la espalda|ejercicios (para|pa) estirar|rutina (para|pa) estirar|rutina de pesas/,
       promptEngineering: /\bamazon q\b|(prompt|orden|instrucciones?) (para|a) (que )?(una |la |el )?(ia|aki).{0,50}(código|script|archivo|función|proyecto)\b|(utilizar|usar) (una )?ia para (modificar|revisar|analizar)/,
@@ -2115,6 +2115,7 @@ const ejecutarTestsV401 = async () => {
         const compact = SerializerSystem.buildCompact(r.ir);
         return xmlValid && xml.includes(r.ir.requestId) && md.includes(r.ir.requestId) && compact.includes(r.ir.requestId) && r.executablePrompt.includes(r.ir.requestId);
       } },
+    { id: "T-170", name: "business ES reconoce 'mi startup'/'business plan' (anglicismos muy comunes en habla real), sin colisionar con 'agente de seguros' (fix v455, hallado en un ciclo del bucle con lote de peticiones variadas)", in: "Quiero hacer un roadmap para mi startup, necesito un business plan sólido", assert: r => !r.error && r.ir.capabilityPlan.required.includes("BUSINESS_PLANNING") },
   ];
 
   let passed = 0;
