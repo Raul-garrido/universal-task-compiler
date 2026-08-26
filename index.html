@@ -727,7 +727,15 @@ const LANG_PACKS = {
   },
   en: {
     code: "en",
-    detectWords: /\b(the|a|an|is|for|with|and|to|of|in|on|my|your|this|that|it|be)\b/g,
+    // Fix v492: ampliado con palabras de pregunta/función muy comunes en
+    // inglés (how/do/does/what/who/...) — encontrado 2 veces en la ronda
+    // 12/16 del bucle de dominios: frases inglesas cortas del tipo "how do
+    // employee stock options typically vest" no tenían NINGUNA palabra de
+    // la lista original y caían por defecto a español, silenciando
+    // cualquier trigger EN-only. Ninguna de estas es palabra española real
+    // (a diferencia de "is"/"a", que si podrian colisionar con abreviaturas
+    // o nombres), asi que el riesgo de falso positivo hacia EN es minimo.
+    detectWords: /\b(the|a|an|is|for|with|and|to|of|in|on|my|your|this|that|it|be|how|do|does|did|what|when|where|who|which|why|we|you|are|can)\b/g,
     accentHint: null,
     // Same deliberately-narrow negation cue list as the ES pack — see the
     // comment there for why bare "avoid" and "except"/"other than" were
@@ -2622,6 +2630,9 @@ const ejecutarTestsV401 = async () => {
     { id: "T-453", name: "Negación EN: paridad del bug documentado (fix v492)", in: "I'm starting a small business, I don't want to talk about my dog or vet topics in the response", assert: r => !r.error && !r.ir.capabilityPlan.required.includes("ANIMAL_CARE_GUIDANCE") && !r.ir.capabilityPlan.required.includes("HEALTH_INFORMATION") && r.ir.capabilityPlan.required.includes("BUSINESS_PLANNING") },
     { id: "T-454", name: "Negación EN: control positivo sin negación (fix v492)", in: "I have a problem with my dog, he's a labrador and won't stop barking", assert: r => !r.error && r.ir.capabilityPlan.required.includes("ANIMAL_CARE_GUIDANCE") },
     { id: "T-455", name: "Negación EN: límite de cláusula por coma+'but' (fix v492)", in: "I don't want to talk about my dog, but I do want help with my cat who is sick", assert: r => !r.error && r.ir.capabilityPlan.required.includes("ANIMAL_CARE_GUIDANCE") },
+    { id: "T-457", name: "detectLanguage: frase EN corta con 'how do' pero sin ningún artículo/preposición de la lista original detecta EN correctamente (fix v492, bug real de T-365/T-413 antes parcheado reescribiendo el test en vez de arreglar el detector)", in: "how do employee stock options typically vest", assert: r => !r.error && r.ir.capabilityPlan.required.includes("TALENT_MANAGEMENT") },
+    { id: "T-458", name: "detectLanguage: segundo caso real de la misma clase de bug ('how do we address...') (fix v492)", in: "how do we address chronic employee absenteeism", assert: r => !r.error && r.ir.capabilityPlan.required.includes("TALENT_MANAGEMENT") },
+    { id: "T-459", name: "detectLanguage: controles ES cortos/ambiguos siguen detectando ES tras ampliar la lista EN (fix v492, evita falso positivo hacia inglés)", in: "hola", assert: () => detectLanguage("hola") === "es" && detectLanguage("como estas") === "es" && detectLanguage("necesito ayuda con mi negocio y mi perro") === "es" },
   ];
 
   let passed = 0;
