@@ -543,6 +543,15 @@ const LANG_PACKS = {
     // idioma de la petición (no para el análisis de dominio en sí).
     detectWords: /\b(el|la|los|las|de|que|para|con|un|una|es|en|por|del|al|se|su|más|como|pero|muy)\b/g,
     accentHint: /[áéíóúñ¿¡]/,
+    // Cláusulas de exclusión explícitas ("no quiero hablar de mi perro") —
+    // deliberadamente acotado a frases sin ambigüedad real. Se excluyeron a
+    // propósito "evita" a secas (colisiona con instrucciones legítimas tipo
+    // "evita el sobrecalentamiento del motor", que SÍ quieren que se trate
+    // ese tema) y "aparte de"/"excepto" (en español pueden ser tanto
+    // inclusivos como exclusivos según el contexto — demasiado riesgo de
+    // falso positivo para un v1 de esta función).
+    negationCues: /\bno quiero (hablar|mencionar|tratar)( el tema)? de\b|\bno (hables|menciones|incluyas|toques( el tema)?) de?\b|\bevita (hablar de|mencionar|el tema de)\b|\bsin (hablar de|mencionar|incluir)\b/gi,
+    negationClauseBoundary: /[.;\n]|,\s*(pero|sino|aunque)\b/i,
     domains: {
       hardwareSystem: /\b(dep[oó]sito|agua|sistema(s)?(?! (solar|electoral|nervioso|inmune|inmunol[oó]gico|digestivo|respiratorio|circulatorio))|autom[aá]tico|automatiz\w*|control|sensor(es)?|actuador(es)?)\b/,
       software: /\b(html|programa\w*|aplicaci\w*|gestion\w*|javascript|typescript|java|php|swift|c[oó]dig\w*|software|app(?!le)\w*|python|backend|frontend|bases? de datos|database|web|plataforma\w*|videojuego\w*|script\w*|api|tampermonkey|apm|backup|commit\w*|repo|vulnerabilidad\w*|excel)\b|integrar (la )?inteligencia artificial|inteligencia artificial en (mi|la|una|el)|con inteligencia artificial|machine learning|máquina de estados|arquitectura de (agentes|microservicios)|agente(s)? autónomo\w*|fallos? de seguridad/,
@@ -720,6 +729,11 @@ const LANG_PACKS = {
     code: "en",
     detectWords: /\b(the|a|an|is|for|with|and|to|of|in|on|my|your|this|that|it|be)\b/g,
     accentHint: null,
+    // Same deliberately-narrow negation cue list as the ES pack — see the
+    // comment there for why bare "avoid" and "except"/"other than" were
+    // left out.
+    negationCues: /\bdon'?t want to (talk|mention) about\b|\bdon'?t (mention|include)\b|\bavoid (talking about|mentioning)\b|\bwithout (mentioning|including)\b|\bnot (talk about|mention)\b/gi,
+    negationClauseBoundary: /[.;\n]|,\s*(but|however|although)\b/i,
     domains: {
       hardwareSystem: /\b(tank|reservoir|water level|automat\w*|control|sensor(s)?|actuator(s)?)\b|\b(?<!solar |electoral |nervous |immune |digestive |respiratory |circulatory )system(s)?\b/,
       software: /\b(html|program\w*|application|app(?!le)\w*|manag\w*|javascript|typescript|java|php|swift|code\w*|software|python|backend|frontend|databases?|web ?site|web app|video ?game\w*|platform\w*|script\w*|api|tampermonkey|apm|backup|commit\w*|repo|excel)\b|state machine|agent architecture|autonomous agent|vulnerabilit(y|ies)|security (flaw|breach)/,
@@ -911,6 +925,49 @@ function detectLanguage(text) {
   return enScore > esScore ? "en" : "es";
 }
 
+// Detección de negación (motor genérico, ver comentario en negationCues de
+// cada LANG_PACK para qué cubre y qué se dejó fuera a propósito). Encuentra
+// todas las apariciones de una cláusula de exclusión y marca un "tramo
+// negado" desde ahí hasta unos caracteres después — lo bastante para cubrir
+// el tema mencionado justo tras la cláusula ("no quiero hablar de mi perro"),
+// sin necesidad de entender gramática real.
+//
+// El tramo se corta antes en cuanto aparece un límite de cláusula (punto,
+// punto y coma, salto de línea, o una coma seguida de "pero"/"but"/etc.) —
+// sin esto, una frase tan normal como "no quiero hablar de mi perro, pero
+// sí quiero que me ayudes con mi gato" suprimía también el gato, que está
+// en una cláusula distinta que SÍ quiere tratarse (encontrado en pruebas,
+// no es un caso hipotético).
+function buildNegatedSpans(text, cueRegex, windowChars, boundaryRegex) {
+  const spans = [];
+  if (!cueRegex) return spans;
+  const re = new RegExp(cueRegex.source, cueRegex.flags.includes('g') ? cueRegex.flags : cueRegex.flags + 'g');
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const cueEnd = m.index + m[0].length;
+    const chunk = text.slice(cueEnd, cueEnd + windowChars);
+    const boundary = boundaryRegex ? chunk.match(boundaryRegex) : null;
+    const spanEnd = boundary ? cueEnd + boundary.index : cueEnd + windowChars;
+    spans.push([m.index, spanEnd]);
+    if (re.lastIndex === m.index) re.lastIndex++;
+  }
+  return spans;
+}
+
+// Un dominio puede tener varias apariciones en el texto (regex con muchas
+// alternativas); solo se suprime si TODAS sus apariciones caen dentro de un
+// tramo negado — si aparece también fuera, el dominio sigue activo con
+// normalidad (aditivo, igual que el resto del motor).
+function domainMatchIgnoringNegated(domainRegex, text, negatedSpans) {
+  const re = new RegExp(domainRegex.source, domainRegex.flags.includes('g') ? domainRegex.flags : domainRegex.flags + 'g');
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    if (!negatedSpans.some(([start, end]) => m.index >= start && m.index <= end)) return true;
+    if (re.lastIndex === m.index) re.lastIndex++;
+  }
+  return false;
+}
+
 // Motor genérico: implementa el mismo algoritmo para cualquier paquete de
 // idioma (dominios aditivos, asunciones vs. preguntas realmente pendientes,
 // prioridad por urgencia...). Añadir un idioma nuevo = añadir un pack, no
@@ -919,8 +976,17 @@ function buildUnderstandingFromPack(rawGoal, pack) {
   const t = (rawGoal || "").trim();
   const l = t.toLowerCase();
 
+  // Camino rápido sin cambios de comportamiento: si el texto no contiene
+  // ninguna cláusula de exclusión, el cálculo de flags es exactamente el
+  // .test() de siempre — cero riesgo para el resto de peticiones, que son
+  // la inmensa mayoría.
+  const negatedSpans = buildNegatedSpans(l, pack.negationCues, 60, pack.negationClauseBoundary);
   const flags = {};
-  for (const key of Object.keys(pack.domains)) flags[key] = pack.domains[key].test(l);
+  for (const key of Object.keys(pack.domains)) {
+    flags[key] = negatedSpans.length
+      ? domainMatchIgnoringNegated(pack.domains[key], l, negatedSpans)
+      : pack.domains[key].test(l);
+  }
 
   let inferredGoal = pack.inferredGoal.default;
   if (flags.hardwareSystem && flags.software) {
@@ -2548,6 +2614,14 @@ const ejecutarTestsV401 = async () => {
     { id: "T-445", name: "agricultura EN ronda 18: 'hedge trimming' (fix v490, ES 'poda' suelto ya lo cubria)", in: "when is the best time of year for hedge trimming", assert: r => !r.error && r.ir.capabilityPlan.required.includes("CROP_CARE_GUIDANCE") },
     { id: "T-446", name: "industrial ES ronda 18: 'ruido de cavitacion' en bomba (fix v490)", in: "se escucha un ruido de cavitacion raro en la bomba centrifuga", assert: r => !r.error && r.ir.capabilityPlan.required.includes("TECHNICAL_DIAGNOSIS") },
     { id: "T-447", name: "industrial EN ronda 18: 'cavitation noise', paridad (fix v490)", in: "there is a strange cavitation noise coming from the centrifugal pump", assert: r => !r.error && r.ir.capabilityPlan.required.includes("TECHNICAL_DIAGNOSIS") },
+    { id: "T-448", name: "Negación ES: 'no quiero hablar de mi perro' NO activa mascotas ni salud, pero 'mi negocio' sí sigue activo (bug documentado, fix v492, ciclo 19)", in: "Necesito ayuda con mi negocio, no quiero hablar de mi perro ni de temas de veterinario en la respuesta", assert: r => !r.error && !r.ir.capabilityPlan.required.includes("ANIMAL_CARE_GUIDANCE") && !r.ir.capabilityPlan.required.includes("HEALTH_INFORMATION") && r.ir.capabilityPlan.required.includes("BUSINESS_PLANNING") },
+    { id: "T-449", name: "Negación ES: mismo tema SIN cláusula de exclusión sigue activándose con normalidad (control positivo, fix v492)", in: "tengo un problema con mi perro, es de raza labrador y no para de ladrar", assert: r => !r.error && r.ir.capabilityPlan.required.includes("ANIMAL_CARE_GUIDANCE") },
+    { id: "T-450", name: "Negación ES: límite de cláusula por coma+'pero' — el tema mencionado DESPUÉS del 'pero' no se suprime aunque esté dentro de la ventana de caracteres (fix v492)", in: "no quiero hablar de mi perro, pero si quiero que me ayudes con mi gato que esta enfermo", assert: r => !r.error && r.ir.capabilityPlan.required.includes("ANIMAL_CARE_GUIDANCE") },
+    { id: "T-451", name: "Negación ES: 'evita mencionar' como cláusula de exclusión, con límite de cláusula por coma+'pero' (fix v492)", in: "evita mencionar el tema de mi salario, pero ayudame a planificar mi boda", assert: r => !r.error && r.ir.capabilityPlan.required.includes("PLANNING") },
+    { id: "T-452", name: "Negación ES: límite de cláusula por punto — nueva frase tras el punto no se suprime (fix v492)", in: "no quiero hablar de mi perro. quiero organizar una fiesta de cumpleaños para mi hija", assert: r => !r.error && r.ir.capabilityPlan.required.includes("PLANNING") },
+    { id: "T-453", name: "Negación EN: paridad del bug documentado (fix v492)", in: "I'm starting a small business, I don't want to talk about my dog or vet topics in the response", assert: r => !r.error && !r.ir.capabilityPlan.required.includes("ANIMAL_CARE_GUIDANCE") && !r.ir.capabilityPlan.required.includes("HEALTH_INFORMATION") && r.ir.capabilityPlan.required.includes("BUSINESS_PLANNING") },
+    { id: "T-454", name: "Negación EN: control positivo sin negación (fix v492)", in: "I have a problem with my dog, he's a labrador and won't stop barking", assert: r => !r.error && r.ir.capabilityPlan.required.includes("ANIMAL_CARE_GUIDANCE") },
+    { id: "T-455", name: "Negación EN: límite de cláusula por coma+'but' (fix v492)", in: "I don't want to talk about my dog, but I do want help with my cat who is sick", assert: r => !r.error && r.ir.capabilityPlan.required.includes("ANIMAL_CARE_GUIDANCE") },
   ];
 
   let passed = 0;
