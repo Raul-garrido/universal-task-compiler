@@ -358,10 +358,17 @@ const toggleDictado = () => {
 
 const clearRequestOnly = () => { if($('userRequest')) $('userRequest').value = ""; logTrace("SYS", "Petición borrada.", "info"); };
 const clearAllInputs = () => {
-  if (confirm("¿Borrar petición y artefactos?")) {
+  // Fix v494: "Borrar todo" se anuncia como un reseteo completo, pero no
+  // tocaba la imagen adjunta ni paraba el dictado activo — quedaba la
+  // foto de una petición anterior pegada silenciosamente a la siguiente,
+  // sin relación con ella (bug real encontrado en revisión, misma familia
+  // que el de la imagen borrada al editar la key).
+  if (confirm("¿Borrar petición, artefactos e imagen adjunta?")) {
     if($('userRequest')) $('userRequest').value = "";
     if($('currentArtifact')) $('currentArtifact').value = "";
     if($('modifiedArtifact')) $('modifiedArtifact').value = "";
+    clearAttachedImage();
+    if (dictando) recognizer?.stop();
     logTrace("SYS", "Campos restablecidos.", "info");
   }
 };
@@ -2836,6 +2843,23 @@ const ejecutarTestsV401 = async () => {
           attachedImage = savedImg;
           if ($('imageAttachedInfo')) $('imageAttachedInfo').style.display = savedInfoDisplay || "none";
           updateApiKeyStatusDot();
+        }
+      } },
+    { id: "T-AI-15", name: "'Borrar todo' (clearAllInputs) también limpia la imagen adjunta — reseteo completo real, no parcial (bug real, fix v494)", run: async () => {
+        const savedImg = attachedImage, savedInfoDisplay = $('imageAttachedInfo')?.style.display, savedRequest = $('userRequest')?.value;
+        const origConfirm = window.confirm;
+        try {
+          attachedImage = { data: "ZmFrZQ==", mediaType: "image/jpeg" };
+          if ($('imageAttachedInfo')) $('imageAttachedInfo').style.display = "block";
+          if ($('userRequest')) $('userRequest').value = "algo";
+          window.confirm = () => true;
+          clearAllInputs();
+          return attachedImage === null && $('imageAttachedInfo')?.style.display === "none";
+        } finally {
+          window.confirm = origConfirm;
+          attachedImage = savedImg;
+          if ($('imageAttachedInfo')) $('imageAttachedInfo').style.display = savedInfoDisplay || "none";
+          if ($('userRequest')) $('userRequest').value = savedRequest || "";
         }
       } },
   ];
