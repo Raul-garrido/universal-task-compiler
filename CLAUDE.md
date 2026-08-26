@@ -29,20 +29,12 @@ tarea.
 
 ## Sobre este repositorio
 
-Este repositorio puede contener más de un proyecto independiente de una
-sola página (HTML/CSS/JS sin dependencias ni backend). Cada proyecto vive
-en su propia carpeta o archivo claramente identificado; no mezcles código
-de proyectos distintos en el mismo archivo salvo que se indique lo
-contrario.
-
-Proyectos actuales:
+Este repositorio contiene un único proyecto de una sola página (HTML/CSS/JS
+sin dependencias ni backend):
 
 - `index.html` (raíz): **Universal Semantic Task Compiler** — convierte
   peticiones en lenguaje natural en contratos de ejecución. Ver `README.md`.
-- (En construcción) **Food & Nutrition PWA** — app de nutrición sin backend,
-  basada en USDA FoodData Central, Open Food Facts, TheMealDB y Gemini/
-  Claude como IA. Especificación cerrada en la conversación de origen;
-  arquitectura: Query Engine → Safety Engine → Candidate Engine → Evidence
-  Engine → Recipe Engine → explicación IA. Sin cuentas, sin servidor, sin
-  base de datos propia; claves de API introducidas por el usuario y
-  guardadas en IndexedDB (opcional, con opción de borrado).
+
+Si en el futuro se añade otro proyecto independiente aquí, debe vivir en su
+propia carpeta claramente identificada; no mezclar código de proyectos
+distintos en el mismo archivo salvo que se indique lo contrario.
