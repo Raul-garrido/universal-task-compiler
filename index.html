@@ -641,7 +641,7 @@ const LANG_PACKS = {
       // "writ\w*" no cubre "wrote"/"written" (irregular) — se añaden a mano.
       // "a letter" en vez de "letter" suelta, mismo criterio que "una carta"
       // en español (evita colisión con usos no relacionados de "letter").
-      writing: /\b(writ(?!h)\w*|wrote|written|draft\w*|a letter|email|article|script|story|tale|blog post|social media post|translat\w*)\b|curriculum vitae|my resume|a resume|job interview questions|questions for.{0,15}interview|presentation slides|powerpoint (presentation|slides)|meeting minutes/,
+      writing: /\b(writ(?!h)\w*|wrote|written|draft(?!y\b)\w*|a letter|email|article|script|story|tale|blog post|social media post|translat\w*)\b|curriculum vitae|my resume|a resume|job interview questions|questions for.{0,15}interview|presentation slides|powerpoint (presentation|slides)|meeting minutes/,
       learning: /\b(explain\w*|teach\w*|taught|learn\w*|how (does|do|it works)|what is|understand\w*)\b/,
       planning: /\b(plans?|planning|planned|trip|itinerary|calendar|schedul\w*|hotel\w*|suitcase|luggage|summer camp|organize (my|our) (week|day|routine))\b/,
       legal: /\b(contract|lawsuit|lease|fired|dismiss\w*|legal\w*|lawyer|attorney|regulation\w*|su(?!it)\w*ed|sue|traffic (fine|ticket)|parking (fine|ticket)|speeding ticket|severance)\b|terms and conditions|consumer complaint|labor rights|workers'? rights|formal complaint|data protection/,
@@ -2161,6 +2161,8 @@ const ejecutarTestsV401 = async () => {
     { id: "T-213", name: "purchaseCompare ES reconoce 'merece/vale la pena', frase muy común de decisión de compra que no usaba ninguna palabra clave existente (fix v464, ciclo 9 del bucle)", in: "Merece la pena una impresora láser o mejor de tinta para uso doméstico ocasional", assert: r => !r.error && r.ir.capabilityPlan.required.includes("PRODUCT_DISCOVERY") },
     { id: "T-214", name: "business ES reconoce 'business case', paridad con 'business plan'/'mi startup' (fix v464)", in: "tengo que hacer un business case para justificar comprar software nuevo", assert: r => !r.error && r.ir.capabilityPlan.required.includes("BUSINESS_PLANNING") },
     { id: "T-215", name: "construction ES reconoce 'cemento cola', material de reforma muy común no cubierto (fix v464)", in: "Qué diferencia hay entre cemento cola normal y flexible", assert: r => !r.error && r.ir.capabilityPlan.required.includes("MATERIAL_SELECTION") },
+    { id: "T-216", name: "BUG REAL: writing EN 'draft\\w*' colisionaba con 'drafty' (con corrientes de aire, nada que ver con redactar un borrador) (fix v465, ciclo 10 del bucle, continuación de la auditoría sistemática)", in: "It is really drafty in this old house, especially near the windows", assert: r => !r.error && !r.ir.capabilityPlan.required.includes("WRITING") },
+    { id: "T-217", name: "writing EN sigue reconociendo 'draft'/'drafting' tras el fix del bug de 'drafty' (no regresión v465)", in: "Can you draft an email to my landlord about the broken heater", assert: r => !r.error && r.ir.capabilityPlan.required.includes("WRITING") },
   ];
 
   let passed = 0;
