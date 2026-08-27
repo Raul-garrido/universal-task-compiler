@@ -1,6 +1,6 @@
 {
-  "name": "Generador de Prompt Universal",
-  "short_name": "Prompt Universal",
+  "name": "Garri-Prompt",
+  "short_name": "Garri-Prompt",
   "description": "Compilador semántico de tareas en lenguaje natural a contratos de prompt estructurados, con o sin IA.",
   "start_url": "./index.html",
   "scope": "./",
