@@ -563,7 +563,15 @@ const LANG_PACKS = {
     // inclusivos como exclusivos según el contexto — demasiado riesgo de
     // falso positivo para un v1 de esta función).
     negationCues: /\bno quiero (hablar|mencionar|tratar)( el tema)? de\b|\bno (hables|menciones|incluyas|toques( el tema)?) de?\b|\bevita (hablar de|mencionar|el tema de)\b|\bsin (hablar de|mencionar|incluir)\b/gi,
-    negationClauseBoundary: /[.;\n]|,\s*(pero|sino|aunque)\b/i,
+    // Fix (bare comma sin conjunción contrastiva): "no quiero hablar de mi
+    // perro, ayúdame con mi negocio" NO tiene "pero" tras la coma, así que
+    // la ventana de negación se comía "mi negocio" también. Se añaden verbos
+    // de petición típicos de una cláusula nueva (no de una lista de temas
+    // excluidos) como límite adicional tras la coma. Deliberadamente NO se
+    // trata cualquier coma como límite: "no quiero hablar de mi perro, mi
+    // gato, ni mi loro" debe seguir suprimiendo los tres (lista, no cláusula
+    // nueva) — verificado con test de control.
+    negationClauseBoundary: /[.;\n]|,\s*(pero|sino|aunque|ayúdame|ayudame|quiero|necesito|puedes|podr[ií]as)\b/i,
     domains: {
       hardwareSystem: /\b(dep[oó]sito|agua|sistema(s)?(?! (solar|electoral|nervioso|inmune|inmunol[oó]gico|digestivo|respiratorio|circulatorio))|autom[aá]tico|automatiz\w*|control|sensor(es)?|actuador(es)?)\b/,
       software: /\b(html|programa(?! de (la fiesta|televisi[oó]n|radio|actividades|estudios|mano|hoy))\w*|aplicaci\w*|gestion\w*|javascript|typescript|java|php|swift|c[oó]digo(?! postal| de vestimenta| civil| penal| de circulaci[oó]n| de barras| [eé]tico| de conducta| de descuento| promocional)\w*|codific\w*|software|app(?!le)\w*|python|backend|frontend|bases? de datos|database|web|plataforma(?! (\d|del tren|de la estaci[oó]n|petrol[ií]fera|de lanzamiento))\w*|videojuego\w*|script\w*|api|tampermonkey|apm|backup|commit\w*|repo|vulnerabilidad\w*|excel)\b|integrar (la )?inteligencia artificial|inteligencia artificial en (mi|la|una|el)|con inteligencia artificial|machine learning|máquina de estados|arquitectura de (agentes|microservicios)|agente(s)? autónomo\w*|fallos? de seguridad/,
@@ -753,7 +761,8 @@ const LANG_PACKS = {
     // comment there for why bare "avoid" and "except"/"other than" were
     // left out.
     negationCues: /\bdon'?t want to (talk|mention) about\b|\bdon'?t (mention|include)\b|\bavoid (talking about|mentioning)\b|\bwithout (mentioning|including)\b|\bnot (talk about|mention)\b/gi,
-    negationClauseBoundary: /[.;\n]|,\s*(but|however|although)\b/i,
+    // Same bare-comma fix as the ES pack — see the comment there.
+    negationClauseBoundary: /[.;\n]|,\s*(but|however|although|help me|i want|i need|can you|could you)\b/i,
     domains: {
       hardwareSystem: /\b(tank|reservoir|water level|automat\w*|control|sensor(s)?|actuator(s)?)\b|\b(?<!solar |electoral |nervous |immune |digestive |respiratory |circulatory )system(s)?\b/,
       software: /\b(html|program(?! for .{0,20}(event|party|ceremony|wedding|show)| on tv| on the radio)\w*|application|app(?!le)\w*|manag\w*(?! (my |your |a )?(time|money|stress|emotions?|life|team|people|relationships?|weight|diet))|javascript|typescript|java|php|swift|(?<!zip |postal |dress |area |moral |ethical |civil |legal )code\w*|software|python|backend|frontend|databases?|web ?site|web app|video ?game\w*|(?<!train |oil |launch |drilling )platform(?! \d)\w*|script\w*|api|tampermonkey|apm|backup|commit\w*|repo|excel)\b|state machine|agent architecture|autonomous agent|vulnerabilit(y|ies)|security (flaw|breach)/,
@@ -2689,6 +2698,9 @@ const ejecutarTestsV401 = async () => {
     { id: "T-485", name: "fitness ES: 'entrenamiento' NO colisiona con entrenamiento de un modelo de IA/machine learning (fix v492, auditoría \\w* ronda 2)", in: "quiero mejorar el entrenamiento de mi modelo de machine learning", assert: r => !r.error && !r.ir.capabilityPlan.required.includes("WORKOUT_PROGRAMMING") },
     { id: "T-486", name: "fitness ES: control positivo — 'entrenamiento' en el gimnasio sigue activando fitness con normalidad (fix v492)", in: "quiero mejorar mi entrenamiento en el gimnasio", assert: r => !r.error && r.ir.capabilityPlan.required.includes("WORKOUT_PROGRAMMING") },
     { id: "T-487", name: "pets ES: 'adiestrar' NO colisiona con formar/entrenar a un equipo de personas (equipo de ventas, personal, empleados) (fix v492)", in: "quiero adiestrar a mi equipo de ventas en técnicas de negociación", assert: r => !r.error && !r.ir.capabilityPlan.required.includes("ANIMAL_CARE_GUIDANCE") },
+    { id: "T-489", name: "Negación ES: coma SIN 'pero' pero seguida de un verbo de petición SÍ marca cláusula nueva — el tema tras la coma no se suprime (fix bare-comma)", in: "no quiero hablar de mi perro, ayúdame con mi negocio", assert: r => !r.error && !r.ir.capabilityPlan.required.includes("ANIMAL_CARE_GUIDANCE") && r.ir.capabilityPlan.required.includes("BUSINESS_PLANNING") },
+    { id: "T-490", name: "Negación ES: control — coma SIN verbo de petición sigue siendo lista de temas excluidos, no cláusula nueva (fix bare-comma, evita over-negation)", in: "no quiero hablar de mi perro, ni de mi jardín", assert: r => !r.error && !r.ir.capabilityPlan.required.includes("ANIMAL_CARE_GUIDANCE") && !r.ir.capabilityPlan.required.includes("CROP_CARE_GUIDANCE") },
+    { id: "T-491", name: "Negación EN: paridad del fix bare-comma — coma seguida de 'i want' marca cláusula nueva", in: "i don't want to talk about my dog, i want to start a small business", assert: r => !r.error && !r.ir.capabilityPlan.required.includes("ANIMAL_CARE_GUIDANCE") && r.ir.capabilityPlan.required.includes("BUSINESS_PLANNING") },
     { id: "T-488", name: "pets ES: control positivo — 'adiestrar' un animal real sigue activando mascotas con normalidad (fix v492)", in: "quiero adiestrar a mi perro para que no ladre", assert: r => !r.error && r.ir.capabilityPlan.required.includes("ANIMAL_CARE_GUIDANCE") },
   ];
 
