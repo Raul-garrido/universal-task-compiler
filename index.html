@@ -503,7 +503,9 @@ con esta forma exacta:
 Si la petición mezcla varios dominios (p. ej. hardware y software, o análisis y compra), cubre TODOS en subGoals y requiredCapabilities — no elijas solo uno.` +
     (imageData ? `
 
-Se adjunta también una imagen como contexto visual (p. ej. una avería, un objeto, un documento, una máquina). Analízala junto con el texto y refleja lo que muestra en inferredGoal, subGoals y requiredCapabilities — no la ignores ni te limites a describirla, úsala como parte real de la petición.` : "");
+Se adjunta también una imagen como contexto visual (p. ej. una avería, un objeto, un documento, una máquina, una planta, un vehículo). Añade también este campo al JSON:
+  "imageContent": "identificación objetiva y neutral de qué muestra la imagen — qué tipo de objeto/sujeto es, con la identificación más específica posible (especie, modelo, marca) y sus características visibles reales (color, forma, textura, estado aparente). NO concluyas aquí un diagnóstico ni asumas daño, avería, enfermedad o mal estado salvo que haya evidencia visual inequívoca (rotura, mancha, fuga, deformación clara). Si un rasgo llamativo (p. ej. un color inusual) podría deberse igual de bien a una variedad/modelo/cultivar normal que a un problema real, dilo explícitamente como duda abierta en vez de decidir por la interpretación negativa."
+Usa esa identificación de imageContent como base real para inferredGoal, subGoals y requiredCapabilities (no la ignores ni te limites a describirla sin usarla) — pero mantén imageContent como la lectura visual pura, separada de cualquier interpretación o diagnóstico.` : "");
 
   if (apiKeyClaude) {
     try {
@@ -1268,7 +1270,7 @@ const SerializerSystem = {
 :: TASK_ID = ${ir.requestId}
 :: STATUS = ${ir.validation.status} (${passedCount}/${ir.validation.checks.length})
 :: ANALYSIS_SOURCE = ${u.source === 'ai' ? 'ai (comprensión semántica real)' : 'local (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${u.aiFallbackReason}]` : ''}
-:: LANGUAGE = ${u.lang || 'es'}${u.imageAnalyzed ? '\n:: IMAGE_ATTACHED = sí, analizada por la IA junto con el texto' : ''}
+:: LANGUAGE = ${u.lang || 'es'}${u.imageAnalyzed ? '\n:: IMAGE_ATTACHED = sí, analizada por la IA junto con el texto' + (u.imageContent ? `\n:: IMAGE_CONTENT = ${u.imageContent.replace(/\n/g, ' ')}` : '') : ''}
 
 :: EXPLICIT_GOAL
 > ${u.explicitGoal.replace(/\n/g, '\n> ')}
@@ -1348,7 +1350,7 @@ ${ir.artifacts.base ? `ARTEFACTO BASE (v1):\n${ir.artifacts.base}\n` : ''}${ir.a
 -----------------------------------
 TASK ID: ${ir.requestId}
 FUENTE DEL ANÁLISIS SEMÁNTICO: ${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${u.aiFallbackReason}]` : ''}
-IDIOMA DE ANÁLISIS: ${u.lang || 'es'}${u.imageAnalyzed ? '\nIMAGEN ADJUNTA: sí, analizada por la IA junto con el texto de la petición' : ''}
+IDIOMA DE ANÁLISIS: ${u.lang || 'es'}${u.imageAnalyzed ? '\nIMAGEN ADJUNTA: sí, analizada por la IA junto con el texto de la petición' + (u.imageContent ? `\nCONTENIDO DE LA IMAGEN (identificación objetiva, separada del diagnóstico): ${u.imageContent}` : '') : ''}
 
 1. UNIVERSAL REQUEST UNDERSTANDING
 ----------------------------------
@@ -1435,6 +1437,7 @@ ${artifactsSection}
   <analysis_source method="${u.source}">${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${escXml(u.aiFallbackReason)}]` : ''}</analysis_source>
   <analysis_language>${escXml(u.lang || 'es')}</analysis_language>
   ${u.imageAnalyzed ? '<image_attached>sí, analizada por la IA junto con el texto de la petición</image_attached>' : ''}
+  ${u.imageAnalyzed && u.imageContent ? `<image_content>${escXml(u.imageContent)}</image_content>` : ''}
 
   <request_understanding>
     <explicit_goal>${escXml(u.explicitGoal)}</explicit_goal>
@@ -1528,7 +1531,7 @@ ${ir.artifacts.base ? (() => { const f = mdFenceFor(ir.artifacts.base); return `
 
 ## 0. Fuente del análisis
 **Task ID:** ${ir.requestId}
-**Fuente del análisis semántico:** ${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${u.aiFallbackReason}]` : ''}${u.imageAnalyzed ? '\n**Imagen adjunta:** sí, analizada por la IA junto con el texto de la petición' : ''}
+**Fuente del análisis semántico:** ${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${u.aiFallbackReason}]` : ''}${u.imageAnalyzed ? '\n**Imagen adjunta:** sí, analizada por la IA junto con el texto de la petición' + (u.imageContent ? `\n**Contenido de la imagen (identificación objetiva, separada del diagnóstico):** ${u.imageContent}` : '') : ''}
 **Idioma de análisis:** ${u.lang || 'es'}
 
 ## 1. Comprensión de la petición
@@ -1600,6 +1603,7 @@ ${artifactsMd}
       : '';
 
     return `TASK[${ir.requestId}] SRC=${u.source}${u.aiFallbackReason ? `(fallback:${u.aiFallbackReason})` : ''} LANG=${u.lang || 'es'}${u.imageAnalyzed ? ' IMG=sí' : ''} STATUS=${ir.validation.status} (${passedCount}/${ir.validation.checks.length})
+${u.imageAnalyzed && u.imageContent ? `IMG_CONTENT="${u.imageContent.replace(/\n/g, ' ')}"\n` : ''}
 GOAL.explicit="${u.explicitGoal.replace(/\n/g, ' ')}"
 GOAL.inferred="${u.inferredGoal}"
 OUTCOME="${u.desiredOutcome}"
@@ -2893,6 +2897,26 @@ const ejecutarTestsV401 = async () => {
           if ($('userRequest')) $('userRequest').value = savedRequest || "";
           if (savedHistory) localStorage.setItem(STORAGE_KEY, savedHistory); else localStorage.removeItem(STORAGE_KEY);
         }
+      } },
+    { id: "T-AI-17", name: "Imagen adjunta: el system prompt pide un campo 'imageContent' objetivo, separado del diagnóstico (fix v496 — el motivo real reportado por el usuario)", run: async () => {
+        const of = window.fetch;
+        let body = null;
+        window.fetch = (url, opts) => { body = JSON.parse(opts.body); return Promise.resolve({ ok: true, json: async () => ({ content: [{ text: JSON.stringify({ explicitGoal:"x", inferredGoal:"y", desiredOutcome:"z", userPreferences:[], userConstraints:[], deliverablesExpected:["a"], subGoals:[{id:"SG-01",objective:"o",priority:"HIGH"}], requiredCapabilities:["T"], ambiguities:[], imageContent:"c" }) }] }) }); };
+        try { await aiUnderstandingDual("t", "sk-ant-fake", "", undefined, { data: "ZmFrZQ==", mediaType: "image/jpeg" }); } finally { window.fetch = of; }
+        return body.system.includes("imageContent") && body.system.includes("NO concluyas aquí un diagnóstico");
+      } },
+    { id: "T-AI-18", name: "Imagen adjunta: 'imageContent' devuelto por la IA aparece como línea propia en los 5 formatos de salida, separado de 'IMAGEN ADJUNTA' (fix v496)", run: async () => {
+        const of = window.fetch;
+        window.fetch = () => Promise.resolve({ ok: true, json: async () => ({ content: [{ text: JSON.stringify({ explicitGoal:"x", inferredGoal:"y", desiredOutcome:"z", userPreferences:[], userConstraints:[], deliverablesExpected:["a"], subGoals:[{id:"SG-01",objective:"o",priority:"HIGH"}], requiredCapabilities:["T"], ambiguities:[], imageContent:"MARCADOR_CONTENIDO_IMG_XYZ" }) }] }) });
+        const fakeImage = { data: "ZmFrZQ==", mediaType: "image/jpeg" };
+        let ok = true;
+        try {
+          for (const adapter of ["GENERIC", "AKI", "CLAUDE", "CHATGPT", "LOCAL"]) {
+            const r = await compilarV401("t", "", "", adapter, "sk-ant-fake", "", "es", undefined, fakeImage);
+            if (!r.executablePrompt.includes("MARCADOR_CONTENIDO_IMG_XYZ")) ok = false;
+          }
+        } finally { window.fetch = of; }
+        return ok;
       } },
   ];
   for (const t of aiTests) {
