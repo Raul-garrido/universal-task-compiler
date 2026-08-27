@@ -1317,7 +1317,7 @@ ${validationStr}
 ${artifactsBlock}
 :: GENERATION_INSTRUCTIONS
 > Aplica ASSUMED_DEFAULTS salvo que el usuario indique lo contrario.
-> Si hay elementos en PENDING_QUESTIONS, pregúntalos primero antes de dar la solución final.
+> Si hay elementos en PENDING_QUESTIONS: pregúntalos primero SOLO si son imprescindibles para evitar una respuesta insegura, incorrecta o de alto riesgo (salud, dinero, seguridad física, decisiones legales o irreversibles). Si no lo son, da ya la mejor respuesta posible con la información disponible (incluida la imagen, si la hay), indicando el nivel de confianza de cada conclusión, y ofrece esas preguntas como aclaraciones opcionales para afinar más, no como requisito previo.
 > Realiza el trabajo intelectual y técnico completo según EXECUTION_PHASES.
 > ${ir.definitionOfDone.antiShallowDirective}
 > Entrega una solución analizada, razonada y estructurada que resuelva el objetivo real del usuario.`;
@@ -1402,7 +1402,7 @@ ${artifactsSection}
 8. FINAL OUTPUT CONTRACT / GENERATION INSTRUCTIONS
 --------------------------------------------------
 - Aplica las asunciones por defecto de la sección 1.5 salvo que el usuario indique lo contrario.
-- Si hay preguntas pendientes en la sección 1.6, pregúntalas primero al usuario antes de dar la solución final.
+- Si hay preguntas pendientes en la sección 1.6: pregúntalas primero SOLO si son imprescindibles para evitar una respuesta insegura, incorrecta o de alto riesgo (salud, dinero, seguridad física, decisiones legales o irreversibles). Si no lo son, da ya la mejor respuesta posible con la información disponible (incluida la imagen, si la hay), indicando el nivel de confianza de cada conclusión, y ofrece esas preguntas como aclaraciones opcionales para afinar más, no como requisito previo.
 - Realiza el trabajo intelectual y técnico completo según las fases del plan.
 - ${ir.definitionOfDone.antiShallowDirective}
 - Entrega una solución analizada, razonada y estructurada que resuelva el objetivo real del usuario.`;
@@ -1485,7 +1485,7 @@ ${validationXml}
 ${artifactsXml}
   <generation_instructions>
     <instruction>Aplica las asunciones por defecto salvo que el usuario indique lo contrario.</instruction>
-    <instruction>Si hay elementos en pending_questions, pregúntalos primero antes de dar la solución final.</instruction>
+    <instruction>Si hay elementos en pending_questions: pregúntalos primero SOLO si son imprescindibles para evitar una respuesta insegura, incorrecta o de alto riesgo (salud, dinero, seguridad física, decisiones legales o irreversibles). Si no lo son, da ya la mejor respuesta posible con la información disponible, indicando el nivel de confianza de cada conclusión, y ofrece esas preguntas como aclaraciones opcionales para afinar más, no como requisito previo.</instruction>
     <instruction>Realiza el trabajo intelectual y técnico completo según las fases del plan.</instruction>
     <instruction>${escXml(ir.definitionOfDone.antiShallowDirective)}</instruction>
     <instruction>Entrega una solución analizada, razonada y estructurada que resuelva el objetivo real del usuario.</instruction>
@@ -1577,7 +1577,7 @@ ${validationMd}
 ${artifactsMd}
 ## 8. Instrucciones finales de generación
 1. Aplica las asunciones por defecto salvo que el usuario indique lo contrario.
-2. Si hay preguntas en "Preguntas realmente pendientes", pregúntalas primero antes de dar la solución final.
+2. Si hay preguntas en "Preguntas realmente pendientes": pregúntalas primero SOLO si son imprescindibles para evitar una respuesta insegura, incorrecta o de alto riesgo (salud, dinero, seguridad física, decisiones legales o irreversibles). Si no lo son, da ya la mejor respuesta posible con la información disponible (incluida la imagen, si la hay), indicando el nivel de confianza de cada conclusión, y ofrece esas preguntas como aclaraciones opcionales para afinar más, no como requisito previo.
 3. Realiza el trabajo intelectual y técnico completo según las fases del plan.
 4. ${ir.definitionOfDone.antiShallowDirective}
 5. Entrega una solución analizada, razonada y estructurada que resuelva el objetivo real del usuario.`;
@@ -2041,6 +2041,7 @@ const ejecutarTestsV401 = async () => {
     { id: "T-118", name: "La instrucción de generación final ('No te limites a...') ya no menciona 'tiendas' cuando no aplica — el mismo texto fijo aparecía también en las 4 secciones GENERATION_INSTRUCTIONS de los serializadores, no solo en FORBIDDEN OUTPUTS (fix v434, mismo hallazgo que T-115 pero en un sitio distinto del contrato)", in: "aki se esta liando al darle una orden y vuelve a intentar lo que ya sabe. indicame que decirle a aki", assert: r => !r.error && !r.ir.definitionOfDone.antiShallowDirective.includes("tiendas") && r.ir.definitionOfDone.antiShallowDirective.includes("reintentar enfoques ya descartados") },
     { id: "T-119", name: "La instrucción de generación final sigue mencionando 'tiendas' cuando sí aplica una comparación de compra (no regresión del fix v434)", in: "Compara ollas de dos marcas distintas y dime cuál comprar", assert: r => !r.error && r.ir.definitionOfDone.antiShallowDirective.includes("tiendas") },
     { id: "T-120", name: "Las asunciones de tono/audiencia para promptEngineering/procedureAdherence apuntan a que el destinatario es una IA, no un lector humano sin conocimientos (fix v435, hallado revisando un contrato real: 'dirigido a alguien sin conocimientos previos' no tiene sentido cuando el entregable es un prompt que ejecutará AKI)", in: "aki se esta liando al darle una orden y vuelve a intentar lo que ya sabe. indicame que decirle a aki", assert: r => !r.error && r.ir.understanding.assumedDefaults.audiencia.includes("agente de IA") && r.ir.understanding.assumedDefaults.tono.includes("directo y técnico") },
+    { id: "T-492", name: "GENERATION_INSTRUCTIONS ya no obliga a preguntar siempre antes de responder — solo cuando sea imprescindible por riesgo/seguridad; si no, exige dar ya la mejor respuesta con nivel de confianza (fix v497, hallado en uso real: ChatGPT bloqueó un diagnóstico de una planta con 4 preguntas en vez de responder con lo que la foto ya mostraba)", in: "Analiza esta situación y dime qué puede estar pasando", assert: r => !r.error && SerializerSystem.buildPlain(r.ir).includes("SOLO si son imprescindibles") && SerializerSystem.buildPlain(r.ir).includes("aclaraciones opcionales") && !/pregúntalas primero al usuario antes de dar la solución final\.$/m.test(SerializerSystem.buildPlain(r.ir)) },
     { id: "T-121", name: "Las asunciones de tono/audiencia siguen orientadas a un lector humano cuando el dominio no es promptEngineering/procedureAdherence (no regresión del fix v435)", in: "Ayúdame a organizar mi semana para poder trabajar, hacer ejercicio tres días y estudiar inglés", assert: r => !r.error && r.ir.understanding.assumedDefaults.audiencia.includes("sin conocimientos previos") },
     { id: "T-122", name: "software ES reconoce 'tampermonkey'/'apm' como palabras clave propias, sin depender de 'script' (fix v436, hallado con un caso real: la petición decía 'scrip' con un typo, sin la t final, y ni 'tampermonkey' ni 'apm' eran palabra clave por sí solas)", in: "Hay un scrip de tampermonkey que se llama master apm, quiero que cojas los datos que utiliza para introducir las horas de trabajo", assert: r => !r.error && r.ir.capabilityPlan.required.includes("SOFTWARE_DESIGN") },
     { id: "T-123", name: "procedureAdherence ES reconoce 'su forma lo ejecuta bien y la tuya aún no está depurada' — preferir el método ya probado sobre el que no lo está, sin usar la palabra 'playbook' ni mencionar reintentos (fix v436, hallado con el mismo caso real)", in: "Quiero que uses los mismos datos que ese script, ya que su forma lo ejecuta bien y la tuya aún no está depurada", assert: r => !r.error && r.ir.capabilityPlan.required.includes("PROCEDURE_ADHERENCE") },
@@ -2916,6 +2917,18 @@ const ejecutarTestsV401 = async () => {
             if (!r.executablePrompt.includes("MARCADOR_CONTENIDO_IMG_XYZ")) ok = false;
           }
         } finally { window.fetch = of; }
+        return ok;
+      } },
+    { id: "T-AI-19", name: "GENERATION_INSTRUCTIONS con la regla condicional de 'preguntar primero' (solo si es de alto riesgo) presente en AKI/GENERIC/CLAUDE/CHATGPT, y el texto viejo incondicional ya no aparece en ninguno (fix v497)", run: async () => {
+        let ok = true;
+        for (const adapter of ["GENERIC", "AKI", "CLAUDE", "CHATGPT"]) {
+          const r = await compilarV401("Analiza esta situación y dime qué puede estar pasando", "", "", adapter, "", "", "es");
+          const p = r.executablePrompt;
+          if (!/SOLO si son imprescindibles/.test(p)) ok = false;
+          if (!/aclaraciones opcionales/.test(p)) ok = false;
+          if (/pregúntalas? primero (al usuario )?antes de dar la solución final\.(<\/instruction>)?$/m.test(p)) ok = false;
+          if (/pregúntalos primero antes de dar la solución final\.$/m.test(p)) ok = false;
+        }
         return ok;
       } },
   ];
