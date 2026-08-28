@@ -2,18 +2,8 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Garri-Prompt</title>
-
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0d1117">
-  <link rel="icon" href="icon-192.png">
-
-  <!-- iOS/Safari: no lee bien manifest.json, necesita sus propios meta tags -->
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Garri-Prompt">
-  <link rel="apple-touch-icon" href="icon-180.png">
   <style>
     :root { --bg:#020408; --panel:#0d1117; --line:#30363d; --text:#c9d1d9; --muted:#8b949e; --accent:#58a6ff; --warn:#d29922; --bad:#f85149; --ok:#238636; --ok-text:#3fb950; }
     * { box-sizing:border-box; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; }
@@ -114,11 +104,7 @@
             </label>
             <input id="genericBaseUrl" type="text" placeholder="URL base compatible con OpenAI, ej. https://api.openai.com/v1" autocomplete="off" style="margin-top:4px;">
             <input id="genericModel" type="text" placeholder="Nombre del modelo, ej. gpt-4o" autocomplete="off" style="margin-top:4px;">
-            <label style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted);margin-top:6px;cursor:pointer;">
-              <input type="checkbox" id="rememberKey" style="width:auto;margin:0;">
-              Recordar estas keys en este dispositivo (localStorage) — solo en este dispositivo, no se sincroniza ni se sube a ningún sitio. No actives esto en un dispositivo compartido o público.
-            </label>
-            <p style="font-size:10px;color:var(--muted);margin-top:6px;">Por defecto, con las tres casillas sin marcar, la herramienta NO hace ninguna llamada a internet: todo el análisis es local. Marca la casilla del proveedor que quieras usar (se marca sola al pegar una key). Si marcas solo una, se usa esa. Si marcas varias, el orden es Claude → Gemini → Genérico: solo se pasa al siguiente si el anterior falla (red, key inválida, cuota, etc.). El campo "Genérico" sirve para cualquier proveedor compatible con el formato de OpenAI (OpenAI real, Groq, DeepSeek, OpenRouter, modelos locales vía Ollama/LM Studio...) — necesita URL base + modelo + key. Si no marcas "Recordar", ninguna key se guarda: se borran solas de estos campos tras cada compilación.</p>
+            <p style="font-size:10px;color:var(--muted);margin-top:6px;">Por defecto, con las tres casillas sin marcar, la herramienta NO hace ninguna llamada a internet: todo el análisis es local. Marca la casilla del proveedor que quieras usar (se marca sola al pegar una key). Si marcas solo una, se usa esa. Si marcas varias, el orden es Claude → Gemini → Genérico: solo se pasa al siguiente si el anterior falla (red, key inválida, cuota, etc.). El campo "Genérico" sirve para cualquier proveedor compatible con el formato de OpenAI (OpenAI real, Groq, DeepSeek, OpenRouter, modelos locales vía Ollama/LM Studio...) — necesita URL base + modelo + key. Ninguna key se guarda: se borran solas de estos campos tras cada compilación.</p>
           </details>
 
           <div class="row" style="margin-top: 8px;">
@@ -1980,36 +1966,10 @@ const ejecutarCompilacionV401 = async () => {
   if (cancelBtn) cancelBtn.style.display = "none";
   // Fix v410: paridad con wizard.html — la key no debe persistir en el DOM
   // tras usarse (defensa en profundidad; nunca se guarda, solo vivía en este
-  // campo mientras se compilaba), salvo que "Recordar" esté activo. La
-  // imagen siempre es de un solo uso, por petición concreta — se limpia
-  // siempre, haya ido bien o mal, recuerdes la key o no.
-  // Fix v493: bug real reportado por el usuario — si desmarcabas "usar
-  // Claude/Gemini" (para que ESTA compilación concreta fuera solo local) sin
-  // querer borrar la key guardada, el bloque de abajo usaba keyClaude/
-  // keyGemini (que ya venían a "" por la casilla desmarcada) para decidir si
-  // recordar, así que trataba "no la uso esta vez" como "no hay key" y la
-  // borraba de localStorage aunque "Recordar" siguiera marcado. Ahora se lee
-  // el valor bruto del campo, independiente de si esta compilación en
-  // concreto ha usado ese proveedor o no — son dos decisiones distintas.
-  const rawKeyClaude = $('apiKeyClaude')?.value?.trim() || "";
-  const rawKeyGemini = $('apiKeyGemini')?.value?.trim() || "";
-  if ($('rememberKey')?.checked && (rawKeyClaude || rawKeyGemini)) {
-    try {
-      if (rawKeyClaude) localStorage.setItem('universalPromptCompiler_savedApiKeyClaude', rawKeyClaude); else localStorage.removeItem('universalPromptCompiler_savedApiKeyClaude');
-      if (rawKeyGemini) localStorage.setItem('universalPromptCompiler_savedApiKeyGemini', rawKeyGemini); else localStorage.removeItem('universalPromptCompiler_savedApiKeyGemini');
-      localStorage.setItem('universalPromptCompiler_useClaude', $('useClaude')?.checked ? '1' : '0');
-      localStorage.setItem('universalPromptCompiler_useGemini', $('useGemini')?.checked ? '1' : '0');
-    } catch (e) {}
-  } else {
-    try {
-      localStorage.removeItem('universalPromptCompiler_savedApiKeyClaude');
-      localStorage.removeItem('universalPromptCompiler_savedApiKeyGemini');
-      localStorage.removeItem('universalPromptCompiler_useClaude');
-      localStorage.removeItem('universalPromptCompiler_useGemini');
-    } catch (e) {}
-    if ($('apiKeyClaude')) $('apiKeyClaude').value = "";
-    if ($('apiKeyGemini')) $('apiKeyGemini').value = "";
-  }
+  // campo mientras se compilaba). La imagen tampoco: es de un solo uso, por
+  // petición concreta — se limpia siempre, haya ido bien o mal.
+  if ($('apiKeyClaude')) $('apiKeyClaude').value = "";
+  if ($('apiKeyGemini')) $('apiKeyGemini').value = "";
   if ($('apiKeyGeneric')) $('apiKeyGeneric').value = "";
   clearAttachedImages();
   updateApiKeyStatusDot();
@@ -3201,23 +3161,9 @@ const ejecutarTestsV401 = async () => {
 
 window.onload = () => {
   renderHistory();
-  try {
-    const savedClaude = localStorage.getItem('universalPromptCompiler_savedApiKeyClaude');
-    const savedGemini = localStorage.getItem('universalPromptCompiler_savedApiKeyGemini');
-    if ((savedClaude || savedGemini) && $('rememberKey')) {
-      if (savedClaude && $('apiKeyClaude')) $('apiKeyClaude').value = savedClaude;
-      if (savedGemini && $('apiKeyGemini')) $('apiKeyGemini').value = savedGemini;
-      if ($('useClaude')) $('useClaude').checked = localStorage.getItem('universalPromptCompiler_useClaude') === '1';
-      if ($('useGemini')) $('useGemini').checked = localStorage.getItem('universalPromptCompiler_useGemini') === '1';
-      $('rememberKey').checked = true;
-    }
-  } catch (e) {}
   updateApiKeyStatusDot();
   if (SpeechRecognitionAPI && $('btnMic')) $('btnMic').style.display = "inline-flex";
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("sw.js").catch(() => {});
-  }
-  logTrace("SYS", "Universal Semantic Task Compiler V401 (AI-Core, PWA) inicializado correctamente.");
+  logTrace("SYS", "Universal Semantic Task Compiler V401 (AI-Core) inicializado correctamente.");
 };
 </script>
 </body>
