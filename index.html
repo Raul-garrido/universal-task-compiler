@@ -1720,6 +1720,22 @@ const compilarV401 = async (input, artifactText, modifiedText, adapter, apiKeyCl
         // parecía que ni se había intentado. Ahora el motivo viaja con el
         // understanding y los serializadores lo imprimen junto a la fuente.
         understanding.aiFallbackReason = e.message;
+        // Fix v499: bug real reportado por el usuario — si había imagen(es)
+        // adjuntas y la IA fallaba, se caía al motor local (que no tiene
+        // capacidad de visión) y la imagen desaparecía sin dejar NINGÚN
+        // rastro en el contrato: ni "IMAGEN ADJUNTA", ni aviso de que no se
+        // analizó. Una petición como "analiza la foto, se me ha roto la
+        // tapa" se compilaba sin la foto y sin que nadie se enterase. Ahora
+        // se declara explícitamente como pregunta pendiente real, para que
+        // el ejecutor final la trate como imprescindible antes de responder
+        // (no es un caso de bajo riesgo: recomendar sin ver la imagen puede
+        // llevar a comprar la pieza equivocada).
+        if (imageData && imageData.length) {
+          const plural = imageData.length > 1;
+          understanding.ambiguities.push(
+            `Se adjuntó${plural ? 'n' : ''} ${imageData.length} imagen${plural ? 'es' : ''} para el análisis, pero no ${plural ? 'pudieron' : 'pudo'} ser analizada${plural ? 's' : ''}: la IA no estaba disponible (${e.message}) y el motor local no tiene capacidad de visión. Vuelve a intentar la compilación con la IA activa (revisa la API key), o describe el contenido de la imagen en el texto de la petición.`
+          );
+        }
         logTrace("INTELLIGENCE", `IA no disponible (${e.message}). Usando análisis local.`, "warn");
       }
     } else {
@@ -3093,6 +3109,18 @@ const ejecutarTestsV401 = async () => {
           r = await compilarV401("Ayúdame a organizar mi semana", "", "", "GENERIC", "", "", undefined, undefined, null, { baseUrl: "", apiKey: "sk-generic-fake", model: "" });
         } finally { window.fetch = of; }
         return calls === 0 && !r.error && r.ir.understanding.source === "local";
+      } },
+    { id: "T-AI-25", name: "Imagen adjunta + la IA falla (cae a local): la imagen ya NO desaparece en silencio — el contrato declara explícitamente que no se pudo analizar (bug real, fix v499)", run: async () => {
+        const of = window.fetch;
+        window.fetch = () => Promise.reject(new Error("Load failed"));
+        const fakeImage = [{ data: "ZmFrZQ==", mediaType: "image/jpeg" }];
+        let r;
+        try {
+          r = await compilarV401("Analiza la foto. Se me ha roto la tapa y necesito comprar una igual", "", "", "GENERIC", "sk-ant-fake", "", "es", undefined, fakeImage);
+        } finally { window.fetch = of; }
+        return !r.error && r.ir.understanding.source === "local"
+          && r.ir.understanding.ambiguities.some(a => a.includes("no pudo ser analizada") && a.includes("Load failed"))
+          && r.executablePrompt.includes("no pudo ser analizada");
       } },
   ];
   for (const t of aiTests) {
