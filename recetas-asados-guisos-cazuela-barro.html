@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Asados y guisos en cazuela de barro — horno de gas tipo Fontana Maestro 60</title>
+<style>
+  :root{
+    --bg:#faf3e9; --bg-alt:#f1e4d0; --card:#fffdf8; --ink:#2c2115; --ink-soft:#5b4a35;
+    --line:#e3d3b8; --accent:#c1502e; --accent-dark:#8f3a20; --olive:#6b7a3d; --mustard:#d69f2e;
+    --shadow: 0 6px 18px rgba(60,40,10,0.10);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#1c1611; --bg-alt:#241c15; --card:#2a2119; --ink:#f1e6d4; --ink-soft:#cbb99e;
+      --line:#4a3b28; --accent:#e2764f; --accent-dark:#f0966f; --olive:#9db06a; --mustard:#e8b750;
+      --shadow: 0 6px 18px rgba(0,0,0,0.35);
+    }
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI",Verdana,Arial,sans-serif;line-height:1.5;}
+  a{color:var(--accent-dark);}
+  header.hero{padding:2.4rem 1.2rem 1.6rem;text-align:center;background:linear-gradient(160deg,var(--bg-alt),var(--bg));border-bottom:1px solid var(--line);}
+  header.hero h1{margin:0 0 .4rem;font-size:clamp(1.5rem,4vw,2.3rem);color:var(--accent-dark);}
+  header.hero p.sub{margin:0 auto;max-width:56rem;color:var(--ink-soft);font-size:1rem;}
+  .wrap{max-width:72rem;margin:0 auto;padding:1.4rem 1.2rem 3rem;}
+
+  details.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);margin-bottom:1.1rem;overflow:hidden;}
+  details.panel > summary{cursor:pointer;list-style:none;padding:1rem 1.2rem;font-weight:600;color:var(--accent-dark);display:flex;align-items:center;gap:.5rem;}
+  details.panel > summary::-webkit-details-marker{display:none;}
+  details.panel > summary::before{content:"▸";transition:transform .15s;}
+  details.panel[open] > summary::before{transform:rotate(90deg);}
+  .panel-body{padding:0 1.3rem 1.2rem;color:var(--ink-soft);font-size:.95rem;}
+  .panel-body h3{color:var(--ink);font-size:1rem;margin:1rem 0 .4rem;}
+  .panel-body ul{margin:.3rem 0;padding-left:1.2rem;}
+  .panel-body li{margin:.25rem 0;}
+
+  table.cmp{width:100%;border-collapse:collapse;font-size:.86rem;margin-top:.4rem;}
+  table.cmp caption{text-align:left;font-size:.8rem;color:var(--ink-soft);margin-bottom:.3rem;}
+  table.cmp th, table.cmp td{border:1px solid var(--line);padding:.5rem .6rem;text-align:left;vertical-align:top;}
+  table.cmp th{background:var(--bg-alt);color:var(--ink);}
+  .cmp-wrap{overflow-x:auto;}
+
+  .assumptions li{margin-bottom:.5rem;}
+  .assumptions b{color:var(--ink);}
+
+  .toolbar{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin:1.2rem 0;}
+  .toolbar input[type=search]{flex:1 1 14rem;padding:.55rem .8rem;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:.95rem;}
+  .chip{border:1px solid var(--line);background:var(--card);color:var(--ink-soft);padding:.4rem .8rem;border-radius:999px;font-size:.82rem;cursor:pointer;transition:.15s;}
+  .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .count{font-size:.85rem;color:var(--ink-soft);margin:0 0 .8rem;}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.1rem;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;}
+  .card-photo{position:relative;height:150px;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+  .card-photo .emoji{font-size:3.6rem;filter:drop-shadow(0 4px 6px rgba(0,0,0,.25));}
+  .card-photo svg.pot{position:absolute;bottom:-6px;left:0;width:100%;height:auto;opacity:.9;}
+  .badge{position:absolute;top:.6rem;left:.6rem;background:rgba(0,0,0,.35);color:#fff;font-size:.72rem;padding:.2rem .55rem;border-radius:999px;backdrop-filter:blur(2px);}
+  .card-body{padding:1rem 1.1rem 1.2rem;display:flex;flex-direction:column;gap:.6rem;flex:1;}
+  .card-body h2{margin:0;font-size:1.12rem;color:var(--ink);}
+  .meta{display:flex;flex-wrap:wrap;gap:.4rem .8rem;font-size:.8rem;color:var(--ink-soft);}
+  .meta span{display:inline-flex;align-items:center;gap:.3rem;}
+  .tip{font-size:.82rem;background:var(--bg-alt);border-left:3px solid var(--mustard);padding:.5rem .6rem;border-radius:6px;color:var(--ink-soft);}
+  .card-body details{border-top:1px dashed var(--line);padding-top:.4rem;}
+  .card-body summary{cursor:pointer;font-weight:600;font-size:.88rem;color:var(--olive);}
+  .card-body ul, .card-body ol{margin:.4rem 0 .2rem;padding-left:1.15rem;font-size:.88rem;}
+  .card-body li{margin:.22rem 0;}
+  .source{margin-top:auto;font-size:.8rem;padding-top:.5rem;border-top:1px solid var(--line);}
+  .source a{word-break:break-word;}
+  footer{max-width:72rem;margin:1rem auto 3rem;padding:0 1.2rem;color:var(--ink-soft);font-size:.82rem;text-align:center;}
+  .noresults{text-align:center;color:var(--ink-soft);padding:2rem;display:none;}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <h1>🍲 Asados y guisos en cazuela de barro</h1>
+  <p class="sub">17 recetas tradicionales españolas — carnes, aves, pescados, legumbres, verduras y casquería — adaptadas para horno de gas doméstico o para un horno de gas tipo <strong>Fontana Maestro 60</strong> (horno compacto de alta temperatura para pizza). Cada ficha incluye ingredientes, pasos, temperatura orientativa y el enlace a la receta original.</p>
+</header>
+
+<div class="wrap">
+
+  <details class="panel" open>
+    <summary>📋 Decisiones y supuestos aplicados a este documento</summary>
+    <div class="panel-body assumptions">
+      <p>La petición dejaba varios puntos abiertos. Se han resuelto así, de forma razonada, para poder entregar el documento completo sin bloquear el resultado:</p>
+      <ul>
+        <li><b>Número de recetas:</b> se ha optado por una colección amplia de <b>17 recetas</b> (en vez de las 4-5 habituales), repartidas entre carnes rojas, aves, cerdo, pescados, legumbres, verduras y casquería, para cumplir el criterio de variedad explícito de la petición.</li>
+        <li><b>Origen de las imágenes:</b> en vez de enlazar u hotlinkear fotografías de las webs de origen (frágil: enlaces rotos, derechos de autor de terceros, dependencia de red externa), cada receta lleva una <b>ilustración vectorial propia y autocontenida</b> (emoji + cazuela de barro en SVG) con un color por categoría. Así el archivo sigue siendo un único HTML portable que se ve igual sin conexión y en cualquier dispositivo. El enlace a la fuente original permite ver allí la fotografía real del plato.</li>
+        <li><b>Idioma:</b> todas las recetas están en español, por ser el idioma de la petición y el habitual de estos platos tradicionales.</li>
+        <li><b>Tipo de horno:</b> se interpreta "Fontana Maestro 60" como lo que es realmente: un <b>horno de gas compacto para pizza</b> (cúpula, quemador inferior, hasta ~480°C), muy distinto de un horno de gas doméstico de cocina. Por eso cada receta incluye una nota de adaptación específica para este tipo de horno, y más abajo hay una comparativa horno doméstico vs. horno tipo Maestro 60.</li>
+        <li><b>Tiempos y temperaturas:</b> son <b>orientativos</b>, tomados de recetas tradicionales para horno doméstico convencional; deben ajustarse con termómetro de horno si se usa un horno de alta temperatura tipo Maestro 60, cuya regulación en el rango bajo (150-200°C) es menos precisa.</li>
+      </ul>
+
+      <h3>🔥 Ficha técnica: horno de gas Fontana Maestro 60</h3>
+      <ul>
+        <li>Potencia: <b>29.000 BTU</b>, quemador de gas situado en la base (no lateral), con cúpula que favorece la circulación de calor.</li>
+        <li>Temperatura: alcanza <b>~400°C en menos de 30 minutos</b> y puede llegar hasta <b>~480°C (900°F)</b>, pensado para cocer pizza en 60-90 segundos.</li>
+        <li>Cámara interior: aproximadamente <b>40 x 60 x 20 cm</b> (16" x 24" x 8"), capacidad para dos pizzas de 30 cm o una cazuela mediana.</li>
+        <li>Está aislado térmicamente, lo que ayuda a mantener temperatura, pero también dificulta bajar rápido de rango una vez caliente.</li>
+        <li>El propio fabricante indica que, además de pizza, sirve para pan, carnes a la brasa y algunos postres, aunque no está diseñado como horno de cocción lenta.</li>
+      </ul>
+      <p style="font-size:.78rem;">Fuentes: <a href="https://www.fontanaforniusa.com/pages/maestro-60-specs" target="_blank" rel="noopener">Fontana Forni USA — Maestro 60 Specs</a> · <a href="https://www.thebarbecuestore.es/Fontana-Maestro-60-Gas-Oven" target="_blank" rel="noopener">The Barbecue Store — Horno de Gas Fontana Maestro 60</a></p>
+
+      <h3>⚖️ Horno doméstico de gas vs. horno tipo Fontana Maestro 60 para asados y guisos en cazuela</h3>
+      <div class="cmp-wrap">
+      <table class="cmp">
+        <caption>Comparativa con criterios explícitos — ninguna de las dos es "mejor" en absoluto, depende del plato y de la técnica.</caption>
+        <thead><tr><th>Criterio</th><th>Horno de gas doméstico (empotrable, de cocina)</th><th>Horno de gas tipo Fontana Maestro 60 (horno exterior para pizza)</th></tr></thead>
+        <tbody>
+          <tr><td>Rango de temperatura útil</td><td>Buen control entre 100-250°C, ideal para cocciones largas y suaves</td><td>Optimizado para 300-480°C; mantener de forma estable 150-180°C durante horas es difícil sin válvula de regulación fina</td></tr>
+          <tr><td>Tiempo de calentamiento</td><td>10-15 min hasta 180°C</td><td>Menos de 30 min hasta 400°C, pero bajar y estabilizar en rango de guiso lento cuesta más</td></tr>
+          <tr><td>Capacidad interior</td><td>Amplia: varias bandejas o una cazuela grande con holgura</td><td>Reducida (~40x24x20 cm): cabe una cazuela mediana o pieza individual</td></tr>
+          <tr><td>Distribución del calor</td><td>Resistencias arriba/abajo, a veces con ventilador (convección)</td><td>Quemador inferior + cúpula: calor envolvente tipo horno de leña, muy bueno para dorar y dar costra</td></tr>
+          <tr><td>Asados largos (pierna de cordero, cochinillo, redondo)</td><td>Muy adecuado: temperatura estable durante 1-3 horas</td><td>Viable si el quemador admite llama mínima sostenida y se vigila con termómetro; si no, mejor precocinar/estofar en casa y usar el Maestro 60 solo para el dorado y la costra final (10-20 min a temperatura alta)</td></tr>
+          <tr><td>Guisos de legumbres en cazuela de barro (lentejas, alubias, pochas)</td><td>Muy adecuado: calor uniforme y prolongado sin riesgo de hervir con violencia</td><td>Limitado: riesgo de hervor fuerte o de secar la cazuela; conviene taparla bien, colocarla alejada de la llama directa y revisar cada 15-20 minutos</td></tr>
+          <tr><td>Pescados y mariscos en cazuela (cocciones cortas)</td><td>Adecuado</td><td>Muy adecuado: el golpe de calor alto y breve (15-20 min a 200-220°C) encaja bien con las cocciones cortas de pescado</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><b>Recomendación práctica</b> (no exclusiva): si se dispone de un horno tipo Fontana Maestro 60, úsese sin adaptar para las recetas de cocción corta (pescados, verduras asadas, gratinados) y con la adaptación de "precocinar + dorar al final" para los asados y guisos largos de carne o legumbre. Un horno de gas doméstico convencional sigue siendo la opción más cómoda para reproducir fielmente los tiempos clásicos de estas recetas.</p>
+    </div>
+  </details>
+
+  <div class="toolbar" role="group" aria-label="Filtros de recetas">
+    <input type="search" id="buscador" placeholder="Buscar por nombre o ingrediente…" aria-label="Buscar receta">
+    <button class="chip" data-cat="todas" aria-pressed="true">Todas</button>
+    <button class="chip" data-cat="carnes-rojas" aria-pressed="false">Carnes rojas</button>
+    <button class="chip" data-cat="aves" aria-pressed="false">Aves</button>
+    <button class="chip" data-cat="cerdo" aria-pressed="false">Cerdo</button>
+    <button class="chip" data-cat="pescados" aria-pressed="false">Pescados</button>
+    <button class="chip" data-cat="legumbres" aria-pressed="false">Legumbres</button>
+    <button class="chip" data-cat="verduras" aria-pressed="false">Verduras</button>
+    <button class="chip" data-cat="casqueria" aria-pressed="false">Casquería</button>
+  </div>
+  <p class="count" id="contador"></p>
+
+  <div class="grid" id="grid"></div>
+  <p class="noresults" id="noresults">No se encontró ninguna receta con ese filtro o búsqueda.</p>
+</div>
+
+<footer>
+  Documento generado como referencia de cocina tradicional española. Los tiempos y temperaturas son orientativos: ajústense según el horno real, el grosor de las piezas y el gusto personal. Cada receta enlaza a su fuente original, donde se puede consultar la fotografía y la versión completa.
+</footer>
+
+<template id="pot-svg">
+<svg class="pot" viewBox="0 0 200 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M0,10 Q100,40 200,10 L200,40 L0,40 Z" fill="currentColor"/>
+</svg>
+</template>
+
+<script>
+const recetas = [
+  {
+    nombre: "Redondo de ternera asado en cazuela de barro",
+    categoria: "carnes-rojas", categoriaLabel: "Carne roja",
+    emoji: "🐄", color1: "#b5502f", color2: "#7a3418",
+    horno: "170-180°C", tiempo: "1h 30 - 1h 45", raciones: "6", dificultad: "Media",
+    tip: "En un horno tipo Maestro 60 abre la llama al mínimo y deja la puerta entreabierta para intentar estabilizar entre 170-180°C con termómetro de horno; si no logra bajar de ese rango, sella la carne y termínala 20-30 min a máxima temperatura tras precocinarla despacio en casa.",
+    ingredientes: ["1,2 kg de redondo de ternera", "2 cebollas en cuartos", "2 zanahorias en trozos", "1 puerro", "4 dientes de ajo", "2 hojas de laurel", "1 ramita de romero", "300 ml de caldo de carne", "150 ml de vino blanco", "Aceite de oliva, sal y pimienta"],
+    pasos: [
+      "Salpimentar la carne y sellarla en una sartén con aceite bien caliente por todos los lados.",
+      "Cubrir el fondo de la cazuela de barro con las verduras troceadas, el laurel y el romero.",
+      "Colocar la carne sellada encima de las verduras.",
+      "Regar con el caldo y el vino blanco.",
+      "Tapar la cazuela y hornear unos 90 minutos, regando la carne con su jugo cada 20-25 minutos.",
+      "Destapar los últimos 10-15 minutos para que dore la superficie.",
+      "Dejar reposar la carne 10 minutos antes de cortarla en filetes finos."
+    ],
+    fuenteNombre: "OKDIARIO — Receta de ternera en cazuela de barro",
+    fuenteUrl: "https://okdiario.com/recetas/receta-ternera-cazuela-barro-5203672"
+  },
+  {
+    nombre: "Pierna de cordero asada en cazuela de barro con patatas",
+    categoria: "carnes-rojas", categoriaLabel: "Carne roja",
+    emoji: "🐑", color1: "#a8632f", color2: "#6e3f1c",
+    horno: "180-200°C", tiempo: "1h 30 - 2h", raciones: "5", dificultad: "Media",
+    tip: "El golpe de calor alto de un horno tipo Maestro 60 favorece la costra dorada del cordero; para que el interior quede tierno sin secarse, coloca la cazuela lo más alejada posible de la llama y cúbrela con papel de aluminio la primera mitad de la cocción.",
+    ingredientes: ["1 pierna de cordero (1,5-2 kg)", "1 kg de patatas en rodajas", "4 dientes de ajo", "1 cebolla", "Manteca de cerdo o aceite de oliva", "Vino blanco", "Laurel", "Sal gorda y pimienta"],
+    pasos: [
+      "Precalentar el horno y untar la pierna de cordero con manteca o aceite, ajo machacado, sal y pimienta.",
+      "Cubrir el fondo de la cazuela de barro con las patatas, la cebolla y el laurel.",
+      "Colocar el cordero encima con la piel hacia arriba y añadir un vaso de agua o caldo.",
+      "Hornear a 180°C durante 1 hora, regando cada 20 minutos con el jugo.",
+      "Dar la vuelta a la pieza, añadir el vino blanco y subir a 200°C otros 30-45 minutos.",
+      "Comprobar que la carne se despega fácilmente del hueso antes de retirar.",
+      "Servir con las patatas doradas en su propio jugo."
+    ],
+    fuenteNombre: "Saltando la Dieta — Cordero asado en cazuela: la receta de mi abuela",
+    fuenteUrl: "https://saltandoladieta.com/2017/12/cordero-asado-cazuela-receta-abuela.html"
+  },
+  {
+    nombre: "Pollo asado en cazuela de barro con verduras de raíz",
+    categoria: "aves", categoriaLabel: "Ave",
+    emoji: "🐔", color1: "#d69f2e", color2: "#a06d17",
+    horno: "190°C", tiempo: "1h 30 - 2h", raciones: "4", dificultad: "Fácil",
+    tip: "Es una de las recetas que mejor se adapta a un horno tipo Maestro 60: coloca el pollo en la zona menos expuesta a la llama directa y baja la potencia una vez alcanzados los 190-200°C para que no se queme la piel antes de que el interior esté hecho.",
+    ingredientes: ["1 pollo entero (1,5 kg aprox.)", "2 zanahorias", "1 cebolla", "1 puerro", "4 dientes de ajo sin pelar", "Tomillo y mejorana", "200 ml de caldo de pollo", "100 ml de vino blanco", "Aceite de oliva, sal y pimienta"],
+    pasos: [
+      "Salpimentar el pollo por dentro y por fuera y dorarlo en la cazuela con aceite y los ajos enteros.",
+      "Retirar el pollo, añadir las verduras troceadas y rehogar 5 minutos.",
+      "Colocar de nuevo el pollo sobre las verduras y añadir las hierbas aromáticas.",
+      "Regar con el vino blanco y dejar evaporar el alcohol 2-3 minutos.",
+      "Añadir el caldo de pollo, tapar y hornear a 190°C durante 1 hora.",
+      "Destapar y hornear otros 30-45 minutos, regando cada 20 minutos, hasta que la piel esté dorada.",
+      "Dejar reposar 10 minutos antes de trinchar."
+    ],
+    fuenteNombre: "Cocinando con las Chachas — Pollo Antaño Asado en Cazuela de Barro",
+    fuenteUrl: "https://www.cocinandoconlaschachas.com/2020/01/pollo-antano-asado-en-cazuela-de-barro.html"
+  },
+  {
+    nombre: "Costillar de cerdo asado en cazuela de barro con patatas panadera",
+    categoria: "cerdo", categoriaLabel: "Cerdo",
+    emoji: "🐖", color1: "#c97f7f", color2: "#8a4a4a",
+    horno: "180°C", tiempo: "1h aprox.", raciones: "4", dificultad: "Fácil",
+    tip: "En un horno de alta temperatura tipo Maestro 60, este plato admite bien empezar fuerte para dorar y terminar tapado con papel de aluminio para que las costillas no se resequen antes de ablandarse.",
+    ingredientes: ["1 costillar de cerdo (1-1,2 kg)", "800 g de patatas en rodajas", "1 cebolla en juliana", "3 dientes de ajo", "Pimentón dulce", "Vino blanco", "Perejil fresco", "Aceite de oliva, sal y pimienta"],
+    pasos: [
+      "Cubrir el fondo de la cazuela con las patatas y la cebolla, salar ligeramente.",
+      "Salpimentar el costillar y espolvorear con pimentón dulce.",
+      "Colocar el costillar sobre las patatas.",
+      "Regar todo con un chorro de vino blanco y aceite de oliva.",
+      "Hornear a 180°C durante unos 50-60 minutos, hasta que la carne se separe con facilidad del hueso.",
+      "Espolvorear con perejil picado antes de servir."
+    ],
+    fuenteNombre: "Cookpad — Costillas de cerdo a la cazuela",
+    fuenteUrl: "https://cookpad.com/es/recetas/131874-costillas-de-cerdo-a-la-cazuela"
+  },
+  {
+    nombre: "Cochinillo asado al horno estilo segoviano",
+    categoria: "cerdo", categoriaLabel: "Cerdo",
+    emoji: "🐷", color1: "#e0b49a", color2: "#a86a3f",
+    horno: "190-200°C", tiempo: "1h 30 - 1h 45", raciones: "6-8", dificultad: "Alta",
+    tip: "Es la receta que mejor aprovecha el potencial de un horno tipo Maestro 60: su calor de cúpula envolvente reproduce bien el efecto del horno de leña tradicional segoviano y ayuda a lograr la piel crujiente característica.",
+    ingredientes: ["1 cochinillo de 4-5 kg", "Agua", "Sal gorda", "Manteca de cerdo (opcional, para el brillo final)", "Ramitas de laurel o palillos de madera"],
+    pasos: [
+      "Colocar el cochinillo abierto en la cazuela de barro con las costillas hacia arriba, apoyado sobre ramitas de laurel para que no se pegue.",
+      "Salar con sal gorda y añadir medio litro de agua en la cazuela.",
+      "Hornear a 190-200°C durante aproximadamente 1 hora, vigilando y rociando con el propio jugo de vez en cuando.",
+      "Dar la vuelta con cuidado, pinchar ligeramente la piel y untar con un poco de manteca.",
+      "Continuar horneando otros 30-45 minutos hasta que la piel quede dorada y crujiente.",
+      "Dejar reposar 10 minutos antes de trinchar, tradicionalmente con el borde de un plato."
+    ],
+    fuenteNombre: "Bonviveur — Cochinillo asado castellano, tradicional receta al horno",
+    fuenteUrl: "https://bonviveur.com/es/recetas/cochinillo-asado"
+  },
+  {
+    nombre: "Conejo al horno en cazuela de barro con verduras y vino blanco",
+    categoria: "carnes-rojas", categoriaLabel: "Carne blanca / caza",
+    emoji: "🐇", color1: "#c78a4a", color2: "#8a5a26",
+    horno: "170-180°C", tiempo: "1h 15 - 2h", raciones: "4", dificultad: "Media",
+    tip: "El conejo se seca con facilidad; en un horno tipo Maestro 60 conviene mantenerlo tapado la mayor parte de la cocción y reservar el calor alto solo para los últimos 10 minutos, destapado, para dorar.",
+    ingredientes: ["1 conejo troceado", "2 zanahorias", "1 pimiento rojo", "1 cebolla", "4 dientes de ajo", "1 hoja de laurel", "Tomillo y orégano", "Un pellizco de azafrán", "150 ml de vino blanco", "Aceite de oliva, sal y pimienta"],
+    pasos: [
+      "Dorar los trozos de conejo en la cazuela con aceite de oliva y el laurel.",
+      "Añadir las verduras picadas finas y rehogar hasta que ablanden.",
+      "Sazonar con sal, orégano, tomillo, pimienta y el azafrán.",
+      "Añadir el vino blanco y dejar reducir un par de minutos.",
+      "Cubrir con agua hasta algo más de la mitad del conejo.",
+      "Hornear tapado a 170-180°C durante 1 hora y destapar los últimos 20-30 minutos para que dore."
+    ],
+    fuenteNombre: "Bonapeti — Conejo asado en cazuela de barro",
+    fuenteUrl: "https://bonapeti.net/recetas/r-202652-Conejo_asado_en_cazuela_de_barro"
+  },
+  {
+    nombre: "Rabo de toro estofado en cazuela de barro",
+    categoria: "carnes-rojas", categoriaLabel: "Carne roja",
+    emoji: "🐂", color1: "#7a2b2b", color2: "#4a1414",
+    horno: "170-175°C", tiempo: "2h 30 - 3h", raciones: "4", dificultad: "Media-alta",
+    tip: "Este guiso cordobés necesita cocción larga y suave, justo lo que peor se le da a un horno de alta temperatura tipo Maestro 60. Si se usa este tipo de horno, es preferible estofarlo despacio en casa (olla o cocina de gas) y usar el Maestro 60 solo para recalentar y gratinar en la cazuela de barro antes de servir.",
+    ingredientes: ["1,5 kg de rabo de toro troceado", "2 cebollas", "2 zanahorias", "4 dientes de ajo", "1 puerro", "2 tomates maduros", "1 vaso de vino tinto", "Caldo de carne", "Laurel, pimienta en grano", "Harina, aceite de oliva y sal"],
+    pasos: [
+      "Salpimentar los trozos de rabo, enharinarlos ligeramente y dorarlos en la cazuela con aceite.",
+      "Retirar la carne y en el mismo aceite rehogar la cebolla, la zanahoria, el puerro y el ajo unos 10 minutos.",
+      "Añadir el tomate rallado y cocinar hasta que pierda el agua.",
+      "Incorporar de nuevo el rabo, el vino tinto y dejar reducir el alcohol.",
+      "Cubrir con caldo de carne, añadir el laurel y la pimienta.",
+      "Tapar y cocer a fuego muy suave (u horno a 170-175°C) durante 2,5-3 horas, hasta que la carne se separe del hueso.",
+      "Retirar la carne, triturar la salsa y pasarla por un colador fino antes de servir."
+    ],
+    fuenteNombre: "El Aderezo — Rabo de toro: la receta tradicional tierna y melosa",
+    fuenteUrl: "https://www.eladerezo.com/recetas/receta-rabo-de-toro.html"
+  },
+  {
+    nombre: "Callos a la madrileña en cazuela de barro",
+    categoria: "casqueria", categoriaLabel: "Casquería",
+    emoji: "🍲", color1: "#8f4a2e", color2: "#5c2c19",
+    horno: "180°C", tiempo: "1h (tras precocción)", raciones: "6", dificultad: "Alta",
+    tip: "Al ser un guiso que solo necesita 'terminar de ligar' en el horno, funciona razonablemente bien en un horno tipo Maestro 60: mete la cazuela ya con el guiso caliente y usa temperatura media, vigilando que no hierva con demasiada fuerza y se reduzca en exceso el caldo.",
+    ingredientes: ["1 kg de callos de ternera limpios", "1 morro de ternera", "1 mano de cerdo", "1 chorizo", "100 g de jamón en tacos", "1 cabeza de ajos", "1 cebolla", "1 zanahoria", "Pimentón dulce y picante", "Guindilla, laurel y pimienta en grano"],
+    pasos: [
+      "Cocer los callos, el morro y la mano de cerdo con la cabeza de ajos, la cebolla, la zanahoria, el laurel y la pimienta hasta que estén tiernos (en olla rápida, 40-45 minutos).",
+      "Preparar un sofrito con ajo y cebolla picados, añadir el jamón y el chorizo troceado.",
+      "Incorporar el pimentón dulce y picante fuera del fuego para que no se queme.",
+      "Añadir un cazo del caldo de cocción de los callos al sofrito y mezclar bien.",
+      "Pasar los callos, el morro y la mano troceados a la cazuela de barro, verter el sofrito y cubrir con el caldo de cocción.",
+      "Hornear a temperatura media (unos 180°C) durante 1 hora para que ligue la salsa.",
+      "Ajustar de sal y guindilla al gusto antes de servir bien caliente."
+    ],
+    fuenteNombre: "Gallina Blanca — Callos a la madrileña hechos en cazuela de barro",
+    fuenteUrl: "https://www.gallinablanca.es/receta/callos-a-la-madrilena-hechos-en-cazuela-de-barro/"
+  },
+  {
+    nombre: "Patatas guisadas con carne en cazuela de barro",
+    categoria: "carnes-rojas", categoriaLabel: "Guiso de carne",
+    emoji: "🥘", color1: "#b5772f", color2: "#7a4d18",
+    horno: "180-190°C", tiempo: "1h aprox.", raciones: "4", dificultad: "Fácil",
+    tip: "Guiso agradecido para un horno tipo Maestro 60 en tandas cortas: sella la carne y el sofrito fuera del horno (en una sartén o en la propia cazuela sobre la llama, si es apta), y usa el horno solo para el tramo final de cocción de las patatas, más corto que el de un asado grande.",
+    ingredientes: ["600 g de carne de ternera para guisar", "800 g de patatas en trozos grandes (cascadas)", "1 cebolla", "2 zanahorias", "3 dientes de ajo", "1 tomate maduro rallado", "Pimentón dulce", "150 ml de vino blanco", "Caldo de carne, laurel, aceite de oliva y sal"],
+    pasos: [
+      "Salpimentar la carne y dorarla en la cazuela con aceite de oliva bien caliente.",
+      "Retirar la carne y en el mismo aceite pochar la cebolla, el ajo y la zanahoria.",
+      "Añadir el tomate rallado y el pimentón, cocinar un minuto sin que se queme.",
+      "Incorporar de nuevo la carne, el vino blanco y dejar reducir.",
+      "Añadir las patatas cascadas y cubrir con caldo de carne.",
+      "Tapar y cocinar a 180-190°C durante 45-60 minutos hasta que la carne y las patatas estén tiernas.",
+      "Destapar los últimos 10 minutos para que el caldo espese ligeramente."
+    ],
+    fuenteNombre: "A Mi Manera Cocinando — Patatas guisadas con carne",
+    fuenteUrl: "https://amimaneracocinando.com/patatas-guisadas-con-carne/"
+  },
+  {
+    nombre: "Garbanzos con bacalao y espinacas",
+    categoria: "legumbres", categoriaLabel: "Legumbre + pescado",
+    emoji: "🫛", color1: "#9c8a3d", color2: "#5f5322",
+    horno: "190°C (final)", tiempo: "15-20 min al horno", raciones: "4", dificultad: "Media",
+    tip: "Prepara el sofrito, los garbanzos cocidos y el bacalao a fuego directo; pásalo todo a la cazuela de barro y termina 15-20 minutos en un horno tipo Maestro 60 ya caliente para que se integren los sabores, evitando así mantenerlo horas a temperatura baja.",
+    ingredientes: ["400 g de garbanzos cocidos", "300 g de bacalao desalado en tacos", "200 g de espinacas frescas", "1 cebolla", "2 dientes de ajo", "1 cucharada de tomate frito", "Pimentón dulce", "Caldo de pescado", "Laurel, aceite de oliva y sal"],
+    pasos: [
+      "Sofreír la cebolla y el ajo picados en la cazuela hasta que estén dorados.",
+      "Añadir el pimentón y el tomate frito, remover fuera del fuego para que no se queme.",
+      "Incorporar los garbanzos cocidos, el laurel y un cucharón de caldo de pescado.",
+      "Añadir las espinacas y dejar que reduzcan de volumen.",
+      "Colocar los tacos de bacalao por encima, tapar y cocinar 15-20 minutos a fuego suave o en horno ya caliente.",
+      "Rectificar de sal (con cuidado, el bacalao ya aporta) antes de servir."
+    ],
+    fuenteNombre: "Directo al Paladar — Garbanzos con bacalao: receta tradicional de Semana Santa",
+    fuenteUrl: "https://www.directoalpaladar.com/recetas-de-legumbres-y-verduras/garbanzos-con-bacalao-y-espinacas-receta-tradicional"
+  },
+  {
+    nombre: "Lentejas guisadas con chorizo en cazuela de barro",
+    categoria: "legumbres", categoriaLabel: "Legumbre",
+    emoji: "🫘", color1: "#8a5a2e", color2: "#553417",
+    horno: "150-160°C", tiempo: "1h 30 - 2h", raciones: "5-6", dificultad: "Fácil",
+    tip: "Es el tipo de guiso más difícil de reproducir en un horno tipo Maestro 60 por su necesidad de calor bajo y sostenido; si se usa este horno, cocina las lentejas primero al fuego de forma convencional y resérvalo solo para darles un toque final de horno de 15-20 minutos destapadas.",
+    ingredientes: ["350 g de lentejas pardinas", "1 chorizo", "100 g de tocino o panceta", "1 cebolla", "1 zanahoria", "1 pimiento verde", "2 dientes de ajo", "1 tomate maduro", "Pimentón dulce", "Laurel, aceite de oliva y sal"],
+    pasos: [
+      "Sofreír en la cazuela la cebolla, el pimiento, la zanahoria y el ajo picados.",
+      "Añadir el tomate rallado y el pimentón, cocinar un par de minutos.",
+      "Incorporar las lentejas, el chorizo y el tocino.",
+      "Cubrir generosamente con agua y añadir el laurel.",
+      "Cocer tapado a fuego lento (o en horno a 150-160°C) durante 1,5-2 horas, hasta que las lentejas estén tiernas.",
+      "Destapar los últimos 10 minutos para que el caldo espese si es necesario."
+    ],
+    fuenteNombre: "Cocina con Noelia — Lentejas guisadas con chorizo y costillas",
+    fuenteUrl: "https://cocinaconnoelia.com/recetas/receta-de-lentejas-guisadas/"
+  },
+  {
+    nombre: "Alubias guisadas con chorizo y morcilla",
+    categoria: "legumbres", categoriaLabel: "Legumbre",
+    emoji: "🫘", color1: "#a04040", color2: "#5c2323",
+    horno: "150°C", tiempo: "1h 30 aprox.", raciones: "5-6", dificultad: "Fácil",
+    tip: "Igual que las lentejas, este guiso pide calor bajo y constante; en un horno tipo Maestro 60 es preferible cocerlas en olla convencional y usar la cazuela de barro y el horno solo para el reposo final, que además ayuda a que 'liguen' según el dicho popular.",
+    ingredientes: ["400 g de alubias blancas o pintas (en remojo la noche anterior)", "1 chorizo", "1 morcilla", "100 g de tocino", "1 cebolla", "1 pimiento verde", "2 dientes de ajo", "1 hoja de laurel", "Aceite de oliva y sal"],
+    pasos: [
+      "Escaldar el chorizo y la morcilla en agua hirviendo 5 minutos y escurrir para retirar exceso de grasa.",
+      "Poner en la cazuela las alubias escurridas, el tocino, el laurel y agua fría hasta cubrir generosamente.",
+      "Cocer a fuego suave (o en horno a 150°C) durante una hora, sin remover con cuchara (mover la cazuela para no romper las alubias).",
+      "Preparar un sofrito de cebolla, ajo y pimiento verde en una sartén aparte.",
+      "Añadir el sofrito, el chorizo y la morcilla a la cazuela y cocinar 20-30 minutos más.",
+      "Dejar reposar unos minutos antes de servir; el plato mejora de un día para otro."
+    ],
+    fuenteNombre: "La Cocina de Inma López — Alubias blancas guisadas con chorizo y morcilla",
+    fuenteUrl: "https://lacocinadeinma.com/2021/02/01/alubias-blancas-guisadas-habichuelas-con-chorizo-y-morcilla/"
+  },
+  {
+    nombre: "Pochas con codorniz en cazuela de barro",
+    categoria: "legumbres", categoriaLabel: "Legumbre + ave",
+    emoji: "🐦", color1: "#8fa04a", color2: "#556329",
+    horno: "160°C", tiempo: "45-60 min", raciones: "4", dificultad: "Media",
+    tip: "Cocción relativamente corta comparada con otras legumbres, lo que la hace más viable en un horno tipo Maestro 60: sofríe y dora las codornices fuera del horno y usa este solo para el tramo final de 45-60 minutos con la cazuela tapada.",
+    ingredientes: ["400 g de pochas (alubias blancas frescas)", "4 codornices limpias", "1 puerro", "1 pimiento verde", "2 dientes de ajo", "1 tomate maduro", "1 hueso de jamón (opcional)", "Aceite de oliva y sal"],
+    pasos: [
+      "Sofreír en la cazuela el puerro, el pimiento y el ajo picados finos.",
+      "Añadir el tomate rallado y cocinar hasta que pierda el agua.",
+      "Incorporar las pochas y el hueso de jamón, cubrir con agua y cocer 20 minutos a fuego medio.",
+      "Salpimentar las codornices y dorarlas en una sartén aparte con un poco de aceite.",
+      "Añadir las codornices a la cazuela con las pochas.",
+      "Tapar y terminar la cocción 30-40 minutos a fuego suave (o en horno a 160°C) hasta que las pochas estén cremosas y las codornices tiernas."
+    ],
+    fuenteNombre: "Guía Repsol — Receta de pochas con codornices, al estilo Rosa Tovar",
+    fuenteUrl: "https://www.guiarepsol.com/es/comer/recetas/receta-pochas-codornices/"
+  },
+  {
+    nombre: "Merluza a la cazuela con almejas y patatas",
+    categoria: "pescados", categoriaLabel: "Pescado",
+    emoji: "🐟", color1: "#3d6f9c", color2: "#1f3f5c",
+    horno: "190°C", tiempo: "15-20 min", raciones: "4", dificultad: "Fácil",
+    tip: "Una de las recetas más compatibles con un horno tipo Maestro 60: la cocción es corta y a temperatura media-alta, justo el punto fuerte de este tipo de horno; solo hay que vigilar que las almejas no se pasen y queden gomosas.",
+    ingredientes: ["4 rodajas o lomos de merluza", "300 g de almejas", "2 patatas medianas", "1 cebolla", "2 dientes de ajo", "1 pimiento verde", "150 ml de caldo de pescado", "Vino blanco", "Perejil fresco, aceite de oliva y sal"],
+    pasos: [
+      "Cortar las patatas en rodajas finas y precocerlas ligeramente; disponerlas en el fondo de la cazuela.",
+      "Sofreír la cebolla, el ajo y el pimiento en el mismo aceite y repartir sobre las patatas.",
+      "Salpimentar la merluza y colocarla sobre el sofrito.",
+      "Añadir el vino blanco y el caldo de pescado.",
+      "Hornear a 190°C durante 10-12 minutos.",
+      "Añadir las almejas ya limpias y continuar hasta que se abran, unos 5-8 minutos más.",
+      "Espolvorear con perejil picado antes de servir."
+    ],
+    fuenteNombre: "Pescanova — Merluza a la cazuela con almejas",
+    fuenteUrl: "https://www.pescanova.es/recetas/merluza-a-la-cazuela-con-almejas/"
+  },
+  {
+    nombre: "Bacalao a la vizcaína en cazuela de barro",
+    categoria: "pescados", categoriaLabel: "Pescado",
+    emoji: "🐟", color1: "#a03d3d", color2: "#5c2020",
+    horno: "190-200°C", tiempo: "20 min", raciones: "4", dificultad: "Media",
+    tip: "Cocción corta con calor solo por abajo, ideal también para un horno tipo Maestro 60: coloca la cazuela en la zona de calor directo del quemador inferior y controla los últimos minutos para que la salsa no se reduzca en exceso.",
+    ingredientes: ["4 lomos de bacalao desalado", "4 pimientos choriceros (o ñoras)", "2 cebollas", "3 dientes de ajo", "1 tomate maduro", "Pan frito o galleta María para espesar (opcional)", "Aceite de oliva y sal"],
+    pasos: [
+      "Hidratar los pimientos choriceros en agua caliente y extraer la pulpa con una cuchara.",
+      "Pochar la cebolla y el ajo a fuego muy suave durante 15-20 minutos hasta que caramelicen.",
+      "Añadir el tomate rallado y la pulpa de los pimientos, cocinar 10 minutos más.",
+      "Triturar la salsa hasta que quede fina; espesar con pan frito si se desea.",
+      "Colocar una base de salsa en la cazuela de barro, el bacalao con la piel hacia arriba y cubrir con más salsa.",
+      "Hornear a 190-200°C (con calor solo por abajo si el horno lo permite) durante unos 20 minutos.",
+      "Servir en la misma cazuela con pan rústico para mojar."
+    ],
+    fuenteNombre: "Mycook — Bacalao a la vizcaína al horno",
+    fuenteUrl: "https://mycook.es/receta/bacalao-a-la-vizcaina-al-horno"
+  },
+  {
+    nombre: "Verduras y patatas asadas al horno en cazuela de barro",
+    categoria: "verduras", categoriaLabel: "Verdura",
+    emoji: "🥕", color1: "#6b7a3d", color2: "#3f4a20",
+    horno: "190-200°C", tiempo: "45-60 min", raciones: "4", dificultad: "Fácil",
+    tip: "Receta muy adecuada para un horno tipo Maestro 60: el calor alto y envolvente carameliza bien las verduras. Corta las piezas más duras (patata, zanahoria) más pequeñas que las blandas (calabacín, berenjena) para que se hagan a la vez.",
+    ingredientes: ["2 patatas medianas", "1 calabacín", "1 berenjena", "1 pimiento rojo", "1 pimiento verde", "1 cebolla roja", "4 dientes de ajo con piel", "Aceite de oliva, sal, pimienta y orégano"],
+    pasos: [
+      "Cortar todas las verduras en trozos similares y colocarlas en la cazuela de barro.",
+      "Aliñar con aceite de oliva, sal, pimienta y orégano, mezclando bien.",
+      "Añadir los ajos enteros con piel repartidos entre las verduras.",
+      "Hornear a 190-200°C durante 45-60 minutos, removiendo a media cocción para que se doren por igual.",
+      "Comprobar el punto con un tenedor: deben quedar tiernas pero no deshechas.",
+      "Servir templadas, solas o como acompañamiento de carnes y pescados asados."
+    ],
+    fuenteNombre: "Recetas Fáciles — Receta de verduras asadas al horno",
+    fuenteUrl: "https://recetasfaciles.com/recetas/verduras-asadas-horno/"
+  },
+  {
+    nombre: "Berenjenas rellenas gratinadas en cazuela de barro",
+    categoria: "verduras", categoriaLabel: "Verdura",
+    emoji: "🍆", color1: "#5b3f6b", color2: "#33223f",
+    horno: "180-200°C", tiempo: "40 min", raciones: "4", dificultad: "Media",
+    tip: "El gratinado final se beneficia mucho del calor alto de un horno tipo Maestro 60; hornea el relleno a temperatura media hasta que esté hecho y sube al máximo solo los últimos 2-3 minutos para dorar el queso, vigilando de cerca para que no se queme.",
+    ingredientes: ["4 berenjenas medianas", "200 g de carne picada (o verduras variadas para versión vegetariana)", "1 cebolla", "1 diente de ajo", "1 tomate maduro", "Queso rallado", "Bechamel (opcional)", "Aceite de oliva, sal, pimienta y orégano"],
+    pasos: [
+      "Cortar las berenjenas por la mitad, hacer unos cortes en la pulpa, salar y regar con aceite.",
+      "Hornear las mitades a 180°C durante 25-30 minutos hasta que estén blandas.",
+      "Vaciar con cuidado la pulpa dejando una fina capa junto a la piel, y picarla.",
+      "Sofreír la cebolla y el ajo, añadir la carne picada (o las verduras) y la pulpa de berenjena; cocinar bien.",
+      "Añadir el tomate rallado y sazonar con orégano, sal y pimienta.",
+      "Rellenar las pieles de berenjena con la mezcla, cubrir con bechamel o queso rallado.",
+      "Gratinar a 200°C durante 8-10 minutos hasta que la superficie esté dorada."
+    ],
+    fuenteNombre: "Directo al Paladar — Berenjenas rellenas de carne gratinadas en el horno",
+    fuenteUrl: "https://www.directoalpaladar.com/recetas-de-legumbres-y-verduras/berenjenas-rellenas-carne-gratinadas-horno-nuestra-mejor-receta"
+  }
+];
+
+const grid = document.getElementById("grid");
+const contador = document.getElementById("contador");
+const noresults = document.getElementById("noresults");
+const buscador = document.getElementById("buscador");
+const chips = document.querySelectorAll(".chip");
+let catActual = "todas";
+
+function crearTarjeta(r){
+  const art = document.createElement("article");
+  art.className = "card";
+  art.dataset.cat = r.categoria;
+  art.dataset.texto = (r.nombre + " " + r.ingredientes.join(" ")).toLowerCase();
+  art.innerHTML = `
+    <div class="card-photo" style="background:linear-gradient(160deg,${r.color1},${r.color2});color:${r.color2}">
+      <span class="badge">${r.categoriaLabel}</span>
+      <span class="emoji" aria-hidden="true">${r.emoji}</span>
+      <svg class="pot" viewBox="0 0 200 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M0,14 Q50,36 100,20 T200,16 L200,40 L0,40 Z" fill="${r.color2}" opacity="0.85"/>
+      </svg>
+    </div>
+    <div class="card-body">
+      <h2>${r.nombre}</h2>
+      <div class="meta">
+        <span>🔥 ${r.horno}</span>
+        <span>⏱️ ${r.tiempo}</span>
+        <span>🍽️ ${r.raciones} raciones</span>
+        <span>📈 ${r.dificultad}</span>
+      </div>
+      <p class="tip">🧭 Adaptación horno tipo Fontana Maestro 60: ${r.tip}</p>
+      <details>
+        <summary>Ver ingredientes y pasos</summary>
+        <h3 style="font-size:.85rem;margin:.6rem 0 .2rem;">Ingredientes</h3>
+        <ul>${r.ingredientes.map(i => `<li>${i}</li>`).join("")}</ul>
+        <h3 style="font-size:.85rem;margin:.6rem 0 .2rem;">Pasos</h3>
+        <ol>${r.pasos.map(p => `<li>${p}</li>`).join("")}</ol>
+      </details>
+      <p class="source">📎 Fuente original: <a href="${r.fuenteUrl}" target="_blank" rel="noopener noreferrer">${r.fuenteNombre}</a></p>
+    </div>
+  `;
+  return art;
+}
+
+recetas.forEach(r => grid.appendChild(crearTarjeta(r)));
+
+function aplicarFiltros(){
+  const q = buscador.value.trim().toLowerCase();
+  let visibles = 0;
+  document.querySelectorAll(".card").forEach(card => {
+    const coincideCat = catActual === "todas" || card.dataset.cat === catActual;
+    const coincideTexto = !q || card.dataset.texto.includes(q);
+    const visible = coincideCat && coincideTexto;
+    card.style.display = visible ? "" : "none";
+    if(visible) visibles++;
+  });
+  contador.textContent = `Mostrando ${visibles} de ${recetas.length} recetas`;
+  noresults.style.display = visibles === 0 ? "block" : "none";
+}
+
+chips.forEach(chip => {
+  chip.addEventListener("click", () => {
+    chips.forEach(c => c.setAttribute("aria-pressed", "false"));
+    chip.setAttribute("aria-pressed", "true");
+    catActual = chip.dataset.cat;
+    aplicarFiltros();
+  });
+});
+buscador.addEventListener("input", aplicarFiltros);
+
+aplicarFiltros();
+</script>
+</body>
+</html>
