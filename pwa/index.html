@@ -7,13 +7,19 @@
 
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0d1117">
-  <link rel="icon" href="icon-192.png">
+  <link rel="icon" href="icon-192.png?v=3">
 
-  <!-- iOS/Safari: no lee bien manifest.json, necesita sus propios meta tags -->
+  <!-- iOS/Safari: no lee bien manifest.json, necesita sus propios meta tags.
+       El "?v=N" en las URLs de icono es a propósito: iOS cachea el
+       apple-touch-icon por URL y a veces ni quitar+volver a añadir el acceso
+       directo lo refresca (bug real reportado por el usuario) — cambiar la
+       URL en cada revisión de icono fuerza a Safari a pedirlo de nuevo en
+       vez de servir el cacheado. Subir este número cada vez que el icono
+       cambie de verdad, no en cada actualización cualquiera. -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Garri-Prompt">
-  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="apple-touch-icon" href="icon-180.png?v=3">
   <style>
     :root { --bg:#020408; --panel:#0d1117; --line:#30363d; --text:#c9d1d9; --muted:#8b949e; --accent:#58a6ff; --warn:#d29922; --bad:#f85149; --ok:#238636; --ok-text:#3fb950; }
     * { box-sizing:border-box; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; }
