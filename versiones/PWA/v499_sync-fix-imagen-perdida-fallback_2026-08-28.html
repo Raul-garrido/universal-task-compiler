@@ -2,8 +2,18 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Garri-Prompt</title>
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0d1117">
+  <link rel="icon" href="icon-192.png">
+
+  <!-- iOS/Safari: no lee bien manifest.json, necesita sus propios meta tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Garri-Prompt">
+  <link rel="apple-touch-icon" href="icon-180.png">
   <style>
     :root { --bg:#020408; --panel:#0d1117; --line:#30363d; --text:#c9d1d9; --muted:#8b949e; --accent:#58a6ff; --warn:#d29922; --bad:#f85149; --ok:#238636; --ok-text:#3fb950; }
     * { box-sizing:border-box; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; }
@@ -104,7 +114,11 @@
             </label>
             <input id="genericBaseUrl" type="text" placeholder="URL base compatible con OpenAI, ej. https://api.openai.com/v1" autocomplete="off" style="margin-top:4px;">
             <input id="genericModel" type="text" placeholder="Nombre del modelo, ej. gpt-4o" autocomplete="off" style="margin-top:4px;">
-            <p style="font-size:10px;color:var(--muted);margin-top:6px;">Por defecto, con las tres casillas sin marcar, la herramienta NO hace ninguna llamada a internet: todo el análisis es local. Marca la casilla del proveedor que quieras usar (se marca sola al pegar una key). Si marcas solo una, se usa esa. Si marcas varias, el orden es Claude → Gemini → Genérico: solo se pasa al siguiente si el anterior falla (red, key inválida, cuota, etc.). El campo "Genérico" sirve para cualquier proveedor compatible con el formato de OpenAI (OpenAI real, Groq, DeepSeek, OpenRouter, modelos locales vía Ollama/LM Studio...) — necesita URL base + modelo + key. Ninguna key se guarda: se borran solas de estos campos tras cada compilación.</p>
+            <label style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted);margin-top:6px;cursor:pointer;">
+              <input type="checkbox" id="rememberKey" style="width:auto;margin:0;">
+              Recordar estas keys en este dispositivo (localStorage) — solo en este dispositivo, no se sincroniza ni se sube a ningún sitio. No actives esto en un dispositivo compartido o público.
+            </label>
+            <p style="font-size:10px;color:var(--muted);margin-top:6px;">Por defecto, con las tres casillas sin marcar, la herramienta NO hace ninguna llamada a internet: todo el análisis es local. Marca la casilla del proveedor que quieras usar (se marca sola al pegar una key). Si marcas solo una, se usa esa. Si marcas varias, el orden es Claude → Gemini → Genérico: solo se pasa al siguiente si el anterior falla (red, key inválida, cuota, etc.). El campo "Genérico" sirve para cualquier proveedor compatible con el formato de OpenAI (OpenAI real, Groq, DeepSeek, OpenRouter, modelos locales vía Ollama/LM Studio...) — necesita URL base + modelo + key. Si no marcas "Recordar", ninguna key se guarda: se borran solas de estos campos tras cada compilación.</p>
           </details>
 
           <div class="row" style="margin-top: 8px;">
@@ -564,7 +578,6 @@ Si la petición mezcla varios dominios (p. ej. hardware y software, o análisis 
 
 Se ${imageData.length > 1 ? `adjuntan también ${imageData.length} imágenes` : 'adjunta también una imagen'} como contexto visual (p. ej. una avería, un objeto, un documento, una máquina, una planta, un vehículo${imageData.length > 1 ? ' — pueden ser ángulos o encuadres distintos de lo mismo, como un primer plano del problema concreto y una vista general para identificar el modelo/contexto' : ''}). Añade también este campo al JSON:
   "imageContent": "identificación objetiva y neutral de qué muestra${imageData.length > 1 ? ` CADA imagen por separado (numera "Imagen 1: ...", "Imagen 2: ...", etc., una frase por imagen)` : ' la imagen'} — qué tipo de objeto/sujeto es, con la identificación más específica posible (especie, modelo, marca) y sus características visibles reales (color, forma, textura, estado aparente). NO concluyas aquí un diagnóstico ni asumas daño, avería, enfermedad o mal estado salvo que haya evidencia visual inequívoca (rotura, mancha, fuga, deformación clara). Si un rasgo llamativo (p. ej. un color inusual) podría deberse igual de bien a una variedad/modelo/cultivar normal que a un problema real, dilo explícitamente como duda abierta en vez de decidir por la interpretación negativa."
-Analiza la imagen en detalle SIEMPRE, sin que el usuario tenga que pedirlo explícitamente en el texto — la sola presencia de una imagen adjunta ya es la petición de analizarla. Además, si el texto de la petición da alguna pista concreta sobre qué mirar en la imagen (p. ej. "hay una etiqueta, fíjate si está en mal estado para intentar averiguar qué ponía"), profundiza específicamente en esa pista dentro de imageContent con el máximo detalle posible — intenta leer o describir lo que se alcance a ver aunque esté borroso, dañado, girado o parcialmente ilegible, indicando el nivel de certeza de esa lectura, en vez de quedarte en una descripción genérica del objeto.
 Usa esa identificación de imageContent como base real para inferredGoal, subGoals y requiredCapabilities (no la ignores ni te limites a describirla sin usarla) — pero mantén imageContent como la lectura visual pura, separada de cualquier interpretación o diagnóstico.` : "");
 
   const providers = [];
@@ -1214,18 +1227,6 @@ const DefinitionOfDoneEngine = {
     if (hasCap(/COST/)) completionCriteria.push("Debe incluirse una estimación de costes justificada, no una cifra sin desglosar.");
     if (hasCap(/RISK/)) completionCriteria.push("Deben identificarse explícitamente los riesgos o modos de fallo relevantes.");
     if (hasCap(/PRICE|PRODUCT|COMPARISON/)) completionCriteria.push("La comparación debe incluir al menos dos alternativas con criterios explícitos, no una única recomendación sin contraste.");
-    // Fix v500: 3 lecciones reales de una conversación (fuera de esta
-    // herramienta) donde el usuario tuvo que corregir manualmente a la IA:
-    // una tienda física recomendada llevaba cerrada más de un año, la
-    // búsqueda se quedó solo en el municipio exacto en vez de la zona, y no
-    // quedaba claro qué opciones eran tienda física y cuáles online (ni el
-    // enlace de las online). No podemos forzar desde aquí que la IA verifique
-    // el estado real de una tienda concreta (depende de su propia búsqueda),
-    // pero sí podemos exigir la estructura y la interpretación por defecto.
-    if (hasCap(/PRICE|PRODUCT|COMPARISON/)) {
-      completionCriteria.push("Cualquier medida, tamaño o cantidad que dé el usuario se trata como orientativa, no como especificación estricta, salvo que el usuario diga explícitamente que es un requisito exacto.");
-      completionCriteria.push("Si la petición busca dónde conseguir/comprar algo: cada opción debe indicar si es tienda física (con dirección) o tienda online (con el enlace directo al producto); y si se menciona una ubicación concreta, interprétala como la zona a su alrededor, no solo el municipio exacto, salvo que el usuario restrinja la búsqueda a ese lugar literal.");
-    }
     if (understanding.ambiguities && understanding.ambiguities.length) completionCriteria.push(`Deben resolverse o declararse explícitamente estas ambigüedades: ${understanding.ambiguities.join('; ')}.`);
     if (understanding.assumedDefaults && Object.keys(understanding.assumedDefaults).length) completionCriteria.push("Deben respetarse las asunciones por defecto declaradas (sección 1.5), salvo que el usuario indique lo contrario.");
     if (understanding.urgency) completionCriteria.push("La petición señala urgencia/criticidad: prioriza una validación exhaustiva sin omitir pasos por rapidez.");
@@ -1346,7 +1347,7 @@ const SerializerSystem = {
 :: TASK_ID = ${ir.requestId}
 :: STATUS = ${ir.validation.status} (${passedCount}/${ir.validation.checks.length})
 :: ANALYSIS_SOURCE = ${u.source === 'ai' ? 'ai (comprensión semántica real)' : 'local (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${u.aiFallbackReason}]` : ''}
-:: LANGUAGE = ${u.lang || 'es'}${u.imageAnalyzed ? `\n:: IMAGE_ATTACHED = sí${u.imageCount > 1 ? ` (${u.imageCount} imágenes)` : ''}, analizada por la IA junto con el texto` + (u.imageContent ? `\n:: IMAGE_CONTENT = ${u.imageContent.replace(/\n/g, ' ')}\n:: IMAGE_REMINDER = si vas a ejecutar este contrato en OTRA conversación/IA, vuelve a adjuntar ahí la(s) imagen(es) original(es) — IMAGE_CONTENT es solo un resumen de apoyo, no sustituye verla(s) directamente` : '') : ''}
+:: LANGUAGE = ${u.lang || 'es'}${u.imageAnalyzed ? `\n:: IMAGE_ATTACHED = sí${u.imageCount > 1 ? ` (${u.imageCount} imágenes)` : ''}, analizada por la IA junto con el texto` + (u.imageContent ? `\n:: IMAGE_CONTENT = ${u.imageContent.replace(/\n/g, ' ')}` : '') : ''}
 
 :: EXPLICIT_GOAL
 > ${u.explicitGoal.replace(/\n/g, '\n> ')}
@@ -1426,7 +1427,7 @@ ${ir.artifacts.base ? `ARTEFACTO BASE (v1):\n${ir.artifacts.base}\n` : ''}${ir.a
 -----------------------------------
 TASK ID: ${ir.requestId}
 FUENTE DEL ANÁLISIS SEMÁNTICO: ${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${u.aiFallbackReason}]` : ''}
-IDIOMA DE ANÁLISIS: ${u.lang || 'es'}${u.imageAnalyzed ? `\nIMAGEN ADJUNTA: sí${u.imageCount > 1 ? ` (${u.imageCount} imágenes)` : ''}, analizada por la IA junto con el texto de la petición` + (u.imageContent ? `\nCONTENIDO DE LA IMAGEN (identificación objetiva, separada del diagnóstico): ${u.imageContent}\nRECORDATORIO: si vas a ejecutar este contrato en OTRA conversación/IA, vuelve a adjuntar ahí la(s) imagen(es) original(es) — el texto de arriba es solo un resumen de apoyo, no sustituye verla(s) directamente.` : '') : ''}
+IDIOMA DE ANÁLISIS: ${u.lang || 'es'}${u.imageAnalyzed ? `\nIMAGEN ADJUNTA: sí${u.imageCount > 1 ? ` (${u.imageCount} imágenes)` : ''}, analizada por la IA junto con el texto de la petición` + (u.imageContent ? `\nCONTENIDO DE LA IMAGEN (identificación objetiva, separada del diagnóstico): ${u.imageContent}` : '') : ''}
 
 1. UNIVERSAL REQUEST UNDERSTANDING
 ----------------------------------
@@ -1514,7 +1515,6 @@ ${artifactsSection}
   <analysis_language>${escXml(u.lang || 'es')}</analysis_language>
   ${u.imageAnalyzed ? `<image_attached>sí${u.imageCount > 1 ? ` (${u.imageCount} imágenes)` : ''}, analizada por la IA junto con el texto de la petición</image_attached>` : ''}
   ${u.imageAnalyzed && u.imageContent ? `<image_content>${escXml(u.imageContent)}</image_content>` : ''}
-  ${u.imageAnalyzed && u.imageContent ? `<image_reminder>si vas a ejecutar este contrato en OTRA conversación/IA, vuelve a adjuntar ahí la(s) imagen(es) original(es) — image_content es solo un resumen de apoyo, no sustituye verla(s) directamente.</image_reminder>` : ''}
 
   <request_understanding>
     <explicit_goal>${escXml(u.explicitGoal)}</explicit_goal>
@@ -1608,7 +1608,7 @@ ${ir.artifacts.base ? (() => { const f = mdFenceFor(ir.artifacts.base); return `
 
 ## 0. Fuente del análisis
 **Task ID:** ${ir.requestId}
-**Fuente del análisis semántico:** ${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${u.aiFallbackReason}]` : ''}${u.imageAnalyzed ? `\n**Imagen adjunta:** sí${u.imageCount > 1 ? ` (${u.imageCount} imágenes)` : ''}, analizada por la IA junto con el texto de la petición` + (u.imageContent ? `\n**Contenido de la imagen (identificación objetiva, separada del diagnóstico):** ${u.imageContent}\n**Recordatorio:** si vas a ejecutar este contrato en OTRA conversación/IA, vuelve a adjuntar ahí la(s) imagen(es) original(es) — el texto de arriba es solo un resumen de apoyo, no sustituye verla(s) directamente.` : '') : ''}
+**Fuente del análisis semántico:** ${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${u.aiFallbackReason}]` : ''}${u.imageAnalyzed ? `\n**Imagen adjunta:** sí${u.imageCount > 1 ? ` (${u.imageCount} imágenes)` : ''}, analizada por la IA junto con el texto de la petición` + (u.imageContent ? `\n**Contenido de la imagen (identificación objetiva, separada del diagnóstico):** ${u.imageContent}` : '') : ''}
 **Idioma de análisis:** ${u.lang || 'es'}
 
 ## 1. Comprensión de la petición
@@ -1680,7 +1680,7 @@ ${artifactsMd}
       : '';
 
     return `TASK[${ir.requestId}] SRC=${u.source}${u.aiFallbackReason ? `(fallback:${u.aiFallbackReason})` : ''} LANG=${u.lang || 'es'}${u.imageAnalyzed ? ` IMG=sí(${u.imageCount || 1})` : ''} STATUS=${ir.validation.status} (${passedCount}/${ir.validation.checks.length})
-${u.imageAnalyzed && u.imageContent ? `IMG_CONTENT="${u.imageContent.replace(/\n/g, ' ')}"\nIMG_REMINDER="si usas esto en otra IA, vuelve a adjuntar la imagen original, este texto no la sustituye"\n` : ''}
+${u.imageAnalyzed && u.imageContent ? `IMG_CONTENT="${u.imageContent.replace(/\n/g, ' ')}"\n` : ''}
 GOAL.explicit="${u.explicitGoal.replace(/\n/g, ' ')}"
 GOAL.inferred="${u.inferredGoal}"
 OUTCOME="${u.desiredOutcome}"
@@ -1967,10 +1967,36 @@ const ejecutarCompilacionV401 = async () => {
   if (cancelBtn) cancelBtn.style.display = "none";
   // Fix v410: paridad con wizard.html — la key no debe persistir en el DOM
   // tras usarse (defensa en profundidad; nunca se guarda, solo vivía en este
-  // campo mientras se compilaba). La imagen tampoco: es de un solo uso, por
-  // petición concreta — se limpia siempre, haya ido bien o mal.
-  if ($('apiKeyClaude')) $('apiKeyClaude').value = "";
-  if ($('apiKeyGemini')) $('apiKeyGemini').value = "";
+  // campo mientras se compilaba), salvo que "Recordar" esté activo. La
+  // imagen siempre es de un solo uso, por petición concreta — se limpia
+  // siempre, haya ido bien o mal, recuerdes la key o no.
+  // Fix v493: bug real reportado por el usuario — si desmarcabas "usar
+  // Claude/Gemini" (para que ESTA compilación concreta fuera solo local) sin
+  // querer borrar la key guardada, el bloque de abajo usaba keyClaude/
+  // keyGemini (que ya venían a "" por la casilla desmarcada) para decidir si
+  // recordar, así que trataba "no la uso esta vez" como "no hay key" y la
+  // borraba de localStorage aunque "Recordar" siguiera marcado. Ahora se lee
+  // el valor bruto del campo, independiente de si esta compilación en
+  // concreto ha usado ese proveedor o no — son dos decisiones distintas.
+  const rawKeyClaude = $('apiKeyClaude')?.value?.trim() || "";
+  const rawKeyGemini = $('apiKeyGemini')?.value?.trim() || "";
+  if ($('rememberKey')?.checked && (rawKeyClaude || rawKeyGemini)) {
+    try {
+      if (rawKeyClaude) localStorage.setItem('universalPromptCompiler_savedApiKeyClaude', rawKeyClaude); else localStorage.removeItem('universalPromptCompiler_savedApiKeyClaude');
+      if (rawKeyGemini) localStorage.setItem('universalPromptCompiler_savedApiKeyGemini', rawKeyGemini); else localStorage.removeItem('universalPromptCompiler_savedApiKeyGemini');
+      localStorage.setItem('universalPromptCompiler_useClaude', $('useClaude')?.checked ? '1' : '0');
+      localStorage.setItem('universalPromptCompiler_useGemini', $('useGemini')?.checked ? '1' : '0');
+    } catch (e) {}
+  } else {
+    try {
+      localStorage.removeItem('universalPromptCompiler_savedApiKeyClaude');
+      localStorage.removeItem('universalPromptCompiler_savedApiKeyGemini');
+      localStorage.removeItem('universalPromptCompiler_useClaude');
+      localStorage.removeItem('universalPromptCompiler_useGemini');
+    } catch (e) {}
+    if ($('apiKeyClaude')) $('apiKeyClaude').value = "";
+    if ($('apiKeyGemini')) $('apiKeyGemini').value = "";
+  }
   if ($('apiKeyGeneric')) $('apiKeyGeneric').value = "";
   clearAttachedImages();
   updateApiKeyStatusDot();
@@ -2008,8 +2034,6 @@ const ejecutarTestsV401 = async () => {
     // verifica de verdad su propósito: que se añaden criterios específicos
     // de dominio, no solo los 3 base.
     { id: "T-04", name: "Anti-Shallowness Enforcer: se añaden criterios específicos de dominio, no solo los 3 base (antes tautológico: cualquier compilación exitosa pasaba)", in: "Compara ollas de dos marcas distintas y dime cuál comprar", assert: r => !r.error && r.ir.definitionOfDone.completionCriteria.some(c => c.includes("al menos dos alternativas")) },
-    { id: "T-500", name: "Lección real (conversación del paellero, fuera de la herramienta): peticiones de compra/comparación exigen tratar medidas como orientativas y distinguir tienda física (con dirección) de online (con enlace), interpretando la ubicación como zona y no solo el municipio exacto (fix v500)", in: "Compara paelleros de gas de unos 45cm y dime cuál comprar cerca de Torrejón de Ardoz", assert: r => !r.error && r.ir.definitionOfDone.completionCriteria.some(c => c.includes("orientativa") && c.includes("no como especificación estricta")) && r.ir.definitionOfDone.completionCriteria.some(c => c.includes("tienda física") && c.includes("tienda online") && c.includes("zona a su alrededor")) },
-    { id: "T-501", name: "Control: una petición de compra SIN ubicación ni medida (fix v500) sigue recibiendo las mismas 2 reglas — son estructurales del dominio, no condicionadas a detectar un lugar/medida concretos en el texto", in: "Compara dos aspiradoras y dime cuál comprar", assert: r => !r.error && r.ir.definitionOfDone.completionCriteria.some(c => c.includes("orientativa")) && r.ir.definitionOfDone.completionCriteria.some(c => c.includes("tienda física")) },
     { id: "T-05", name: "Multi-dominio: ningún subgoal se pierde (fix exclusión mutua)", in: "Quiero crear un sistema automático de control con una app HTML que lo gestione", assert: r => {
         if (r.error) return false;
         const objectives = r.ir.goalGraph.subGoals.map(sg => sg.objective.toLowerCase()).join(' ');
@@ -3138,26 +3162,6 @@ const ejecutarTestsV401 = async () => {
           && r.ir.understanding.ambiguities.some(a => a.includes("no pudo ser analizada") && a.includes("Load failed"))
           && r.executablePrompt.includes("no pudo ser analizada");
       } },
-    { id: "T-AI-26", name: "Imagen adjunta: el system prompt exige analizarla SIEMPRE sin que el texto lo pida, y profundizar al máximo en cualquier pista concreta que dé el texto (p. ej. una etiqueta dañada) (fix v500)", run: async () => {
-        const of = window.fetch;
-        let body = null;
-        window.fetch = (url, opts) => { body = JSON.parse(opts.body); return Promise.resolve({ ok: true, json: async () => ({ content: [{ text: JSON.stringify({ explicitGoal:"x", inferredGoal:"y", desiredOutcome:"z", userPreferences:[], userConstraints:[], deliverablesExpected:["a"], subGoals:[{id:"SG-01",objective:"o",priority:"HIGH"}], requiredCapabilities:["T"], ambiguities:[] }) }] }) }); };
-        try { await aiUnderstandingDual("en la foto hay una etiqueta, ten en cuenta si está en mal estado para intentar averiguar qué ponía", "sk-ant-fake", "", undefined, [{ data: "ZmFrZQ==", mediaType: "image/jpeg" }]); } finally { window.fetch = of; }
-        return body.system.includes("SIEMPRE, sin que el usuario tenga que pedirlo") && body.system.includes("profundiza específicamente en esa pista");
-      } },
-    { id: "T-AI-27", name: "Imagen adjunta: el contrato final avisa de que hay que volver a adjuntar la imagen ORIGINAL si se usa en otra IA/conversación — el texto de imageContent no la sustituye (bug real, fix v501)", run: async () => {
-        const of = window.fetch;
-        window.fetch = () => Promise.resolve({ ok: true, json: async () => ({ content: [{ text: JSON.stringify({ explicitGoal:"x", inferredGoal:"y", desiredOutcome:"z", userPreferences:[], userConstraints:[], deliverablesExpected:["a"], subGoals:[{id:"SG-01",objective:"o",priority:"HIGH"}], requiredCapabilities:["T"], ambiguities:[], imageContent:"c" }) }] }) });
-        const fakeImage = [{ data: "ZmFrZQ==", mediaType: "image/jpeg" }];
-        let ok = true;
-        try {
-          for (const adapter of ["GENERIC", "AKI", "CLAUDE", "CHATGPT", "LOCAL"]) {
-            const r = await compilarV401("t", "", "", adapter, "sk-ant-fake", "", "es", undefined, fakeImage);
-            if (!/vuelve a adjuntar/i.test(r.executablePrompt)) ok = false;
-          }
-        } finally { window.fetch = of; }
-        return ok;
-      } },
   ];
   for (const t of aiTests) {
     let ok = false;
@@ -3175,9 +3179,23 @@ const ejecutarTestsV401 = async () => {
 
 window.onload = () => {
   renderHistory();
+  try {
+    const savedClaude = localStorage.getItem('universalPromptCompiler_savedApiKeyClaude');
+    const savedGemini = localStorage.getItem('universalPromptCompiler_savedApiKeyGemini');
+    if ((savedClaude || savedGemini) && $('rememberKey')) {
+      if (savedClaude && $('apiKeyClaude')) $('apiKeyClaude').value = savedClaude;
+      if (savedGemini && $('apiKeyGemini')) $('apiKeyGemini').value = savedGemini;
+      if ($('useClaude')) $('useClaude').checked = localStorage.getItem('universalPromptCompiler_useClaude') === '1';
+      if ($('useGemini')) $('useGemini').checked = localStorage.getItem('universalPromptCompiler_useGemini') === '1';
+      $('rememberKey').checked = true;
+    }
+  } catch (e) {}
   updateApiKeyStatusDot();
   if (SpeechRecognitionAPI && $('btnMic')) $('btnMic').style.display = "inline-flex";
-  logTrace("SYS", "Universal Semantic Task Compiler V401 (AI-Core) inicializado correctamente.");
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
+  logTrace("SYS", "Universal Semantic Task Compiler V401 (AI-Core, PWA) inicializado correctamente.");
 };
 </script>
 </body>

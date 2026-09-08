@@ -1346,7 +1346,7 @@ const SerializerSystem = {
 :: TASK_ID = ${ir.requestId}
 :: STATUS = ${ir.validation.status} (${passedCount}/${ir.validation.checks.length})
 :: ANALYSIS_SOURCE = ${u.source === 'ai' ? 'ai (comprensión semántica real)' : 'local (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${u.aiFallbackReason}]` : ''}
-:: LANGUAGE = ${u.lang || 'es'}${u.imageAnalyzed ? `\n:: IMAGE_ATTACHED = sí${u.imageCount > 1 ? ` (${u.imageCount} imágenes)` : ''}, analizada por la IA junto con el texto` + (u.imageContent ? `\n:: IMAGE_CONTENT = ${u.imageContent.replace(/\n/g, ' ')}\n:: IMAGE_REMINDER = si vas a ejecutar este contrato en OTRA conversación/IA, vuelve a adjuntar ahí la(s) imagen(es) original(es) — IMAGE_CONTENT es solo un resumen de apoyo, no sustituye verla(s) directamente` : '') : ''}
+:: LANGUAGE = ${u.lang || 'es'}${u.imageAnalyzed ? `\n:: IMAGE_ATTACHED = sí${u.imageCount > 1 ? ` (${u.imageCount} imágenes)` : ''}, analizada por la IA junto con el texto` + (u.imageContent ? `\n:: IMAGE_CONTENT = ${u.imageContent.replace(/\n/g, ' ')}` : '') : ''}
 
 :: EXPLICIT_GOAL
 > ${u.explicitGoal.replace(/\n/g, '\n> ')}
@@ -1426,7 +1426,7 @@ ${ir.artifacts.base ? `ARTEFACTO BASE (v1):\n${ir.artifacts.base}\n` : ''}${ir.a
 -----------------------------------
 TASK ID: ${ir.requestId}
 FUENTE DEL ANÁLISIS SEMÁNTICO: ${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${u.aiFallbackReason}]` : ''}
-IDIOMA DE ANÁLISIS: ${u.lang || 'es'}${u.imageAnalyzed ? `\nIMAGEN ADJUNTA: sí${u.imageCount > 1 ? ` (${u.imageCount} imágenes)` : ''}, analizada por la IA junto con el texto de la petición` + (u.imageContent ? `\nCONTENIDO DE LA IMAGEN (identificación objetiva, separada del diagnóstico): ${u.imageContent}\nRECORDATORIO: si vas a ejecutar este contrato en OTRA conversación/IA, vuelve a adjuntar ahí la(s) imagen(es) original(es) — el texto de arriba es solo un resumen de apoyo, no sustituye verla(s) directamente.` : '') : ''}
+IDIOMA DE ANÁLISIS: ${u.lang || 'es'}${u.imageAnalyzed ? `\nIMAGEN ADJUNTA: sí${u.imageCount > 1 ? ` (${u.imageCount} imágenes)` : ''}, analizada por la IA junto con el texto de la petición` + (u.imageContent ? `\nCONTENIDO DE LA IMAGEN (identificación objetiva, separada del diagnóstico): ${u.imageContent}` : '') : ''}
 
 1. UNIVERSAL REQUEST UNDERSTANDING
 ----------------------------------
@@ -1514,7 +1514,6 @@ ${artifactsSection}
   <analysis_language>${escXml(u.lang || 'es')}</analysis_language>
   ${u.imageAnalyzed ? `<image_attached>sí${u.imageCount > 1 ? ` (${u.imageCount} imágenes)` : ''}, analizada por la IA junto con el texto de la petición</image_attached>` : ''}
   ${u.imageAnalyzed && u.imageContent ? `<image_content>${escXml(u.imageContent)}</image_content>` : ''}
-  ${u.imageAnalyzed && u.imageContent ? `<image_reminder>si vas a ejecutar este contrato en OTRA conversación/IA, vuelve a adjuntar ahí la(s) imagen(es) original(es) — image_content es solo un resumen de apoyo, no sustituye verla(s) directamente.</image_reminder>` : ''}
 
   <request_understanding>
     <explicit_goal>${escXml(u.explicitGoal)}</explicit_goal>
@@ -1608,7 +1607,7 @@ ${ir.artifacts.base ? (() => { const f = mdFenceFor(ir.artifacts.base); return `
 
 ## 0. Fuente del análisis
 **Task ID:** ${ir.requestId}
-**Fuente del análisis semántico:** ${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${u.aiFallbackReason}]` : ''}${u.imageAnalyzed ? `\n**Imagen adjunta:** sí${u.imageCount > 1 ? ` (${u.imageCount} imágenes)` : ''}, analizada por la IA junto con el texto de la petición` + (u.imageContent ? `\n**Contenido de la imagen (identificación objetiva, separada del diagnóstico):** ${u.imageContent}\n**Recordatorio:** si vas a ejecutar este contrato en OTRA conversación/IA, vuelve a adjuntar ahí la(s) imagen(es) original(es) — el texto de arriba es solo un resumen de apoyo, no sustituye verla(s) directamente.` : '') : ''}
+**Fuente del análisis semántico:** ${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${u.aiFallbackReason}]` : ''}${u.imageAnalyzed ? `\n**Imagen adjunta:** sí${u.imageCount > 1 ? ` (${u.imageCount} imágenes)` : ''}, analizada por la IA junto con el texto de la petición` + (u.imageContent ? `\n**Contenido de la imagen (identificación objetiva, separada del diagnóstico):** ${u.imageContent}` : '') : ''}
 **Idioma de análisis:** ${u.lang || 'es'}
 
 ## 1. Comprensión de la petición
@@ -1680,7 +1679,7 @@ ${artifactsMd}
       : '';
 
     return `TASK[${ir.requestId}] SRC=${u.source}${u.aiFallbackReason ? `(fallback:${u.aiFallbackReason})` : ''} LANG=${u.lang || 'es'}${u.imageAnalyzed ? ` IMG=sí(${u.imageCount || 1})` : ''} STATUS=${ir.validation.status} (${passedCount}/${ir.validation.checks.length})
-${u.imageAnalyzed && u.imageContent ? `IMG_CONTENT="${u.imageContent.replace(/\n/g, ' ')}"\nIMG_REMINDER="si usas esto en otra IA, vuelve a adjuntar la imagen original, este texto no la sustituye"\n` : ''}
+${u.imageAnalyzed && u.imageContent ? `IMG_CONTENT="${u.imageContent.replace(/\n/g, ' ')}"\n` : ''}
 GOAL.explicit="${u.explicitGoal.replace(/\n/g, ' ')}"
 GOAL.inferred="${u.inferredGoal}"
 OUTCOME="${u.desiredOutcome}"
@@ -3144,19 +3143,6 @@ const ejecutarTestsV401 = async () => {
         window.fetch = (url, opts) => { body = JSON.parse(opts.body); return Promise.resolve({ ok: true, json: async () => ({ content: [{ text: JSON.stringify({ explicitGoal:"x", inferredGoal:"y", desiredOutcome:"z", userPreferences:[], userConstraints:[], deliverablesExpected:["a"], subGoals:[{id:"SG-01",objective:"o",priority:"HIGH"}], requiredCapabilities:["T"], ambiguities:[] }) }] }) }); };
         try { await aiUnderstandingDual("en la foto hay una etiqueta, ten en cuenta si está en mal estado para intentar averiguar qué ponía", "sk-ant-fake", "", undefined, [{ data: "ZmFrZQ==", mediaType: "image/jpeg" }]); } finally { window.fetch = of; }
         return body.system.includes("SIEMPRE, sin que el usuario tenga que pedirlo") && body.system.includes("profundiza específicamente en esa pista");
-      } },
-    { id: "T-AI-27", name: "Imagen adjunta: el contrato final avisa de que hay que volver a adjuntar la imagen ORIGINAL si se usa en otra IA/conversación — el texto de imageContent no la sustituye (bug real, fix v501)", run: async () => {
-        const of = window.fetch;
-        window.fetch = () => Promise.resolve({ ok: true, json: async () => ({ content: [{ text: JSON.stringify({ explicitGoal:"x", inferredGoal:"y", desiredOutcome:"z", userPreferences:[], userConstraints:[], deliverablesExpected:["a"], subGoals:[{id:"SG-01",objective:"o",priority:"HIGH"}], requiredCapabilities:["T"], ambiguities:[], imageContent:"c" }) }] }) });
-        const fakeImage = [{ data: "ZmFrZQ==", mediaType: "image/jpeg" }];
-        let ok = true;
-        try {
-          for (const adapter of ["GENERIC", "AKI", "CLAUDE", "CHATGPT", "LOCAL"]) {
-            const r = await compilarV401("t", "", "", adapter, "sk-ant-fake", "", "es", undefined, fakeImage);
-            if (!/vuelve a adjuntar/i.test(r.executablePrompt)) ok = false;
-          }
-        } finally { window.fetch = of; }
-        return ok;
       } },
   ];
   for (const t of aiTests) {

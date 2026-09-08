@@ -1,5 +1,5 @@
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$port = 8123
+$port = if ($env:PORT) { $env:PORT } else { 8123 }
 $listener = New-Object System.Net.HttpListener
 $listener.Prefixes.Add("http://localhost:$port/")
 $listener.Start()
@@ -20,6 +20,14 @@ while ($listener.IsListening) {
             $contentType = $mime[$ext]
             if (-not $contentType) { $contentType = "application/octet-stream" }
             $bytes = [System.IO.File]::ReadAllBytes($filePath)
+            # KeepAlive=$false: fuerza una conexion nueva por peticion. El
+            # navegador pide varios recursos a la vez al registrar el
+            # Service Worker de la PWA (manifest, iconos, sw.js), y este
+            # listener solo atiende una peticion a la vez (bucle
+            # sincrono) — con keep-alive, esas peticiones concurrentes se
+            # quedaban esperando la misma conexion y el registro del
+            # Service Worker fallaba con "unknown error fetching script".
+            $res.KeepAlive = $false
             $res.ContentType = $contentType
             $res.ContentLength64 = $bytes.Length
             $res.OutputStream.Write($bytes, 0, $bytes.Length)

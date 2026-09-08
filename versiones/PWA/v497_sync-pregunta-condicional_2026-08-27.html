@@ -2,8 +2,18 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Garri-Prompt</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Generador de Prompt Universal</title>
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0d1117">
+  <link rel="icon" href="icon-192.png">
+
+  <!-- iOS/Safari: no lee bien manifest.json, necesita sus propios meta tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Prompt Universal">
+  <link rel="apple-touch-icon" href="icon-180.png">
   <style>
     :root { --bg:#020408; --panel:#0d1117; --line:#30363d; --text:#c9d1d9; --muted:#8b949e; --accent:#58a6ff; --warn:#d29922; --bad:#f85149; --ok:#238636; --ok-text:#3fb950; }
     * { box-sizing:border-box; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; }
@@ -23,9 +33,6 @@
     textarea, input, select { width: 100%; background: #010409; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 9px 11px; font-size: 12px; margin-bottom: 6px; transition: border 0.2s; }
     textarea:focus, input:focus { outline: none; border-color: var(--accent); }
     textarea { min-height: 120px; resize: vertical; }
-    textarea.artifact-collapsed { min-height: 0; height: 34px; resize: none; overflow: hidden; cursor: text; }
-    .artifact-toggle-btn { background: #21262d; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; width: 20px; height: 20px; font-size: 10px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: 0.2s; }
-    .artifact-toggle-btn:hover { background: #30363d; color: var(--text); }
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     button { background: var(--ok); color: #fff; border: 1px solid rgba(240,246,252,0.1); border-radius: 6px; padding: 8px 14px; font-weight: 600; cursor: pointer; transition: 0.2s; width: 100%; margin-bottom: 6px; }
     button:hover { background: #2ea043; }
@@ -60,7 +67,7 @@
 <body>
 <main>
   <h1>Generador de Prompt Universal</h1>
-  <div class="version-subtitle">Universal Semantic Task Compiler — Enterprise V401 (AI-Core, Goal-Driven) — Creado por Garrido</div>
+  <div class="version-subtitle">Universal Semantic Task Compiler — Enterprise V401 (AI-Core, Goal-Driven)</div>
 
   <div class="grid">
     <!-- LEFT COLUMN -->
@@ -86,7 +93,10 @@
           </div>
           <textarea id="userRequest" placeholder="Introduce aquí tu tarea, prompt o solicitud... Ej: Quiero crear un sistema automático para controlar el nivel de agua de un depósito."></textarea>
           <input type="file" id="imageInput" accept="image/*" capture="environment" style="display:none" onchange="onImageSelected(event)">
-          <div id="imageAttachedInfo" style="display:none;font-size:10px;color:var(--muted);margin-top:4px;"></div>
+          <div id="imageAttachedInfo" style="display:none;font-size:10px;color:var(--muted);margin-top:4px;">
+            📎 <span id="imageAttachedName"></span>
+            <a href="#" onclick="clearAttachedImage(); return false;" style="color:var(--bad);margin-left:6px;">quitar</a>
+          </div>
 
           <details>
             <summary>⚙️ Avanzado (opcional): activar IA en línea con tu propia API key <span id="apiKeyStatusDot" title="Sin ninguna API key introducida" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--bad);margin-left:4px;vertical-align:middle;"></span></summary>
@@ -98,13 +108,11 @@
               <input type="checkbox" id="useGemini" style="width:auto;margin:0;">
               <input id="apiKeyGemini" type="password" placeholder="AIza... (Gemini)" autocomplete="off" style="flex:1;margin-top:0;" oninput="if(this.value.trim()) $('useGemini').checked = true; updateApiKeyStatusDot();">
             </label>
-            <label style="display:flex;align-items:center;gap:6px;margin-top:10px;">
-              <input type="checkbox" id="useGeneric" style="width:auto;margin:0;">
-              <input id="apiKeyGeneric" type="password" placeholder="API key (proveedor genérico)" autocomplete="off" style="flex:1;margin-top:0;" oninput="if(this.value.trim()) $('useGeneric').checked = true; updateApiKeyStatusDot();">
+            <label style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted);margin-top:6px;cursor:pointer;">
+              <input type="checkbox" id="rememberKey" style="width:auto;margin:0;">
+              Recordar estas keys en este dispositivo (localStorage) — solo en este dispositivo, no se sincroniza ni se sube a ningún sitio. No actives esto en un dispositivo compartido o público.
             </label>
-            <input id="genericBaseUrl" type="text" placeholder="URL base compatible con OpenAI, ej. https://api.openai.com/v1" autocomplete="off" style="margin-top:4px;">
-            <input id="genericModel" type="text" placeholder="Nombre del modelo, ej. gpt-4o" autocomplete="off" style="margin-top:4px;">
-            <p style="font-size:10px;color:var(--muted);margin-top:6px;">Por defecto, con las tres casillas sin marcar, la herramienta NO hace ninguna llamada a internet: todo el análisis es local. Marca la casilla del proveedor que quieras usar (se marca sola al pegar una key). Si marcas solo una, se usa esa. Si marcas varias, el orden es Claude → Gemini → Genérico: solo se pasa al siguiente si el anterior falla (red, key inválida, cuota, etc.). El campo "Genérico" sirve para cualquier proveedor compatible con el formato de OpenAI (OpenAI real, Groq, DeepSeek, OpenRouter, modelos locales vía Ollama/LM Studio...) — necesita URL base + modelo + key. Ninguna key se guarda: se borran solas de estos campos tras cada compilación.</p>
+            <p style="font-size:10px;color:var(--muted);margin-top:6px;">Por defecto, con las dos casillas sin marcar, la herramienta NO hace ninguna llamada a internet: todo el análisis es local. Marca la casilla del proveedor que quieras usar (se marca sola al pegar una key). Si marcas solo una, se usa esa. Si marcas las dos, se usa Claude por defecto y solo se pasa a Gemini automáticamente si Claude no está disponible (error de red, key inválida, etc.). Si no marcas "Recordar", ninguna key se guarda: se borran solas de estos campos tras cada compilación.</p>
           </details>
 
           <div class="row" style="margin-top: 8px;">
@@ -157,21 +165,17 @@
 
         <div class="label-header" style="margin-top: 10px;">
           <label for="currentArtifact">📄 Artefacto Técnico Base (v1 Opcional)</label>
-          <span style="display:flex;gap:4px;">
-            <button class="artifact-toggle-btn" id="toggleBtnCurrentArtifact" onclick="toggleArtifactBox('currentArtifact')" title="Expandir/contraer">▸</button>
-            <button class="help-btn" onclick="toggleHelp('helpArtifact')" title="Ayuda">?</button>
-          </span>
+          <button class="help-btn" onclick="toggleHelp('helpArtifact')" title="Ayuda">?</button>
         </div>
         <div class="help-tooltip" id="helpArtifact">
           Pega aquí código, un script o un documento técnico ya existente sobre el que quieras trabajar — así el resultado se basa en el contenido real, no solo en tu descripción de él. Si solo rellenas <b>este</b> campo (v1), el contrato pide comprender y partir de ese código base. Si además rellenas <b>Artefacto Modificado</b> (v2) con una versión distinta, se activa automáticamente una comparación de diferencias (qué cambió, qué riesgos de regresión hay) entre ambas versiones.
         </div>
-        <textarea id="currentArtifact" class="artifact-collapsed" placeholder="Pega aquí el código base si aplica..." onclick="expandArtifactBox('currentArtifact')" onfocus="expandArtifactBox('currentArtifact')"></textarea>
+        <textarea id="currentArtifact" placeholder="Pega aquí el código base si aplica..."></textarea>
 
         <div class="label-header" style="margin-top: 10px;">
           <label for="modifiedArtifact">📄 Artefacto Modificado (v2 Opcional)</label>
-          <button class="artifact-toggle-btn" id="toggleBtnModifiedArtifact" onclick="toggleArtifactBox('modifiedArtifact')" title="Expandir/contraer">▸</button>
         </div>
-        <textarea id="modifiedArtifact" class="artifact-collapsed" placeholder="Pega aquí el código modificado si aplica..." onclick="expandArtifactBox('modifiedArtifact')" onfocus="expandArtifactBox('modifiedArtifact')"></textarea>
+        <textarea id="modifiedArtifact" placeholder="Pega aquí el código modificado si aplica..."></textarea>
 
         <div class="row" style="margin-top: 8px;">
           <button class="secondary" id="btnClearAll" onclick="clearAllInputs()">Borrar Todo</button>
@@ -312,25 +316,6 @@ const copyContent = async elementId => {
 
 const toggleHelp = helpId => { const el = $(helpId); if (el) el.style.display = el.style.display === 'block' ? 'none' : 'block'; };
 
-// Mejora estética: los campos de artefacto (v1/v2) empiezan contraídos a una
-// sola línea, igual que el resto de campos — solo pesan visualmente cuando
-// tienen contenido real. Se expanden al pulsar la flecha o al hacer clic/foco
-// en la propia línea; una vez expandidos no se vuelven a contraer solos
-// (evita que se cierren de golpe mientras el usuario está escribiendo).
-const expandArtifactBox = id => {
-  const el = $(id);
-  const btn = $('toggleBtn' + id.charAt(0).toUpperCase() + id.slice(1));
-  if (el) el.classList.remove('artifact-collapsed');
-  if (btn) btn.textContent = '▾';
-};
-const toggleArtifactBox = id => {
-  const el = $(id);
-  const btn = $('toggleBtn' + id.charAt(0).toUpperCase() + id.slice(1));
-  if (!el) return;
-  const collapsed = el.classList.toggle('artifact-collapsed');
-  if (btn) btn.textContent = collapsed ? '▸' : '▾';
-};
-
 // Dictado por micrófono (Web Speech API). Solo se muestra el botón si el
 // navegador la soporta (Chrome/Edge/Android van bien; Safari/iOS lo
 // soporta desde la 14.1 pero con más limitaciones) — feature-detect en
@@ -396,11 +381,7 @@ const clearAllInputs = () => {
     if($('userRequest')) $('userRequest').value = "";
     if($('currentArtifact')) $('currentArtifact').value = "";
     if($('modifiedArtifact')) $('modifiedArtifact').value = "";
-    $('currentArtifact')?.classList.add('artifact-collapsed');
-    $('modifiedArtifact')?.classList.add('artifact-collapsed');
-    if ($('toggleBtnCurrentArtifact')) $('toggleBtnCurrentArtifact').textContent = '▸';
-    if ($('toggleBtnModifiedArtifact')) $('toggleBtnModifiedArtifact').textContent = '▸';
-    clearAttachedImages();
+    clearAttachedImage();
     if (dictando) recognizer?.stop();
     logTrace("SYS", "Campos restablecidos.", "info");
   }
@@ -450,7 +431,7 @@ const loadFromHistory = i => {
   // atrás cualquier foto adjunta actual, sin relación con ese texto
   // viejo. Si se volvía a pulsar "Crear Prompt" desde ahí, esa foto
   // (de una petición distinta) se colaba en la compilación.
-  if(item) { if($('userRequest')) $('userRequest').value = item.request || ""; if($('executablePrompt')) $('executablePrompt').textContent = item.executablePrompt || ""; clearAttachedImages(); switchTab('tab-prompt'); }
+  if(item) { if($('userRequest')) $('userRequest').value = item.request || ""; if($('executablePrompt')) $('executablePrompt').textContent = item.executablePrompt || ""; clearAttachedImage(); switchTab('tab-prompt'); }
 };
 
 // ==========================================
@@ -463,14 +444,12 @@ const loadFromHistory = i => {
 // camino por defecto — ver nota en README sobre por qué no cambia.
 // ==========================================
 async function callClaudeAPI(rawGoal, apiKey, signal, sys, imageData) {
-  // imageData es opcional: array de { data: base64 sin el prefijo data:,
-  // mediaType } (hasta MAX_ATTACHED_IMAGES, ver onCameraButtonClick). Si no
-  // hay imágenes, "content" sigue siendo el string de siempre (mismo
+  // imageData es opcional: { data: base64 sin el prefijo data:, mediaType }.
+  // Si no hay imagen, "content" sigue siendo el string de siempre (mismo
   // comportamiento exacto que antes, byte a byte, para no romper nada de
-  // lo que ya depende de esta llamada). Con imágenes, la API de Claude
-  // acepta varios bloques "image" en el mismo mensaje sin más cambios.
-  const content = (imageData && imageData.length)
-    ? [ { type: "text", text: rawGoal }, ...imageData.map(img => ({ type: "image", source: { type: "base64", media_type: img.mediaType, data: img.data } })) ]
+  // lo que ya depende de esta llamada).
+  const content = imageData
+    ? [ { type: "text", text: rawGoal }, { type: "image", source: { type: "base64", media_type: imageData.mediaType, data: imageData.data } } ]
     : rawGoal;
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST", signal,
@@ -493,36 +472,13 @@ async function callGeminiAPI(rawGoal, apiKey, signal, sys, imageData) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: sys }] },
-      contents: [{ role: "user", parts: (imageData && imageData.length) ? [{ text: rawGoal }, ...imageData.map(img => ({ inline_data: { mime_type: img.mediaType, data: img.data } }))] : [{ text: rawGoal }] }],
+      contents: [{ role: "user", parts: imageData ? [{ text: rawGoal }, { inline_data: { mime_type: imageData.mediaType, data: imageData.data } }] : [{ text: rawGoal }] }],
       generationConfig: { responseMimeType: "application/json" }
     })
   });
   if (!response.ok) throw new Error("API_ERROR_" + response.status);
   const data = await response.json();
   return ((data.candidates || [])[0]?.content?.parts || []).map(p => p.text || "").join("").trim();
-}
-
-// Fix v498: tercer proveedor, genérico en vez de uno más hardcodeado — pedido
-// por el usuario tras preguntar si se podía cubrir "cualquier IA" en vez de
-// programar cada proveedor a mano. Se usa el formato de Chat Completions de
-// OpenAI porque es el estándar de facto que ya implementan de la misma forma
-// muchos proveedores reales (OpenAI, Groq, DeepSeek, OpenRouter, servidores
-// locales tipo Ollama/LM Studio) — cubre "cualquier IA" en la práctica sin
-// necesidad de una integración por proveedor, aunque no sea 100% literal
-// para APIs con una forma distinta.
-async function callGenericAPI(rawGoal, baseUrl, apiKey, model, signal, sys, imageData) {
-  const content = (imageData && imageData.length)
-    ? [ { type: "text", text: rawGoal }, ...imageData.map(img => ({ type: "image_url", image_url: { url: `data:${img.mediaType};base64,${img.data}` } })) ]
-    : rawGoal;
-  const url = baseUrl.replace(/\/+$/, "") + "/chat/completions";
-  const response = await fetch(url, {
-    method: "POST", signal,
-    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
-    body: JSON.stringify({ model, messages: [{ role: "system", content: sys }, { role: "user", content }], response_format: { type: "json_object" } })
-  });
-  if (!response.ok) throw new Error("API_ERROR_" + response.status);
-  const data = await response.json();
-  return ((data.choices || [])[0]?.message?.content || "").trim();
 }
 
 function parseAiUnderstandingResponse(text) {
@@ -533,15 +489,14 @@ function parseAiUnderstandingResponse(text) {
   return parsed;
 }
 
-// Fix v450: varios proveedores de IA en vez de uno solo, con fallback en
-// cascada en lugar de un selector manual — si el usuario rellena varias
-// keys, se intenta Claude primero (comportamiento histórico de la
-// herramienta), luego Gemini, y por último el proveedor genérico
-// (fix v498) si está configurado — cada uno solo se prueba si el anterior
-// falla (red, key inválida, cuota...). Una cancelación del usuario
-// (AbortError) nunca dispara el fallback: debe propagarse tal cual para que
-// compilarV401 la trate como cancelación, no como "la IA no está disponible".
-async function aiUnderstandingDual(rawGoal, apiKeyClaude, apiKeyGemini, signal, imageData, genericConfig) {
+// Fix v450: dos proveedores de IA en vez de uno solo, con fallback en cascada
+// en lugar de un selector manual — si el usuario rellena las dos keys, se
+// intenta Claude primero (comportamiento histórico de la herramienta) y solo
+// se prueba con Gemini si Claude falla (red, key inválida, cuota...). Una
+// cancelación del usuario (AbortError) nunca dispara el fallback: debe
+// propagarse tal cual para que compilarV401 la trate como cancelación, no
+// como "la IA no está disponible".
+async function aiUnderstandingDual(rawGoal, apiKeyClaude, apiKeyGemini, signal, imageData) {
   const sys = `Eres un analista universal de peticiones para un compilador de prompts orientado a objetivos.
 A partir de la petición del usuario, en CUALQUIER materia (ingeniería, software, compras, análisis, legal,
 ciencia, lo que sea), responde EXCLUSIVAMENTE con un objeto JSON válido (sin texto adicional, sin markdown)
@@ -560,27 +515,22 @@ con esta forma exacta:
 }
 
 Si la petición mezcla varios dominios (p. ej. hardware y software, o análisis y compra), cubre TODOS en subGoals y requiredCapabilities — no elijas solo uno.` +
-    ((imageData && imageData.length) ? `
+    (imageData ? `
 
-Se ${imageData.length > 1 ? `adjuntan también ${imageData.length} imágenes` : 'adjunta también una imagen'} como contexto visual (p. ej. una avería, un objeto, un documento, una máquina, una planta, un vehículo${imageData.length > 1 ? ' — pueden ser ángulos o encuadres distintos de lo mismo, como un primer plano del problema concreto y una vista general para identificar el modelo/contexto' : ''}). Añade también este campo al JSON:
-  "imageContent": "identificación objetiva y neutral de qué muestra${imageData.length > 1 ? ` CADA imagen por separado (numera "Imagen 1: ...", "Imagen 2: ...", etc., una frase por imagen)` : ' la imagen'} — qué tipo de objeto/sujeto es, con la identificación más específica posible (especie, modelo, marca) y sus características visibles reales (color, forma, textura, estado aparente). NO concluyas aquí un diagnóstico ni asumas daño, avería, enfermedad o mal estado salvo que haya evidencia visual inequívoca (rotura, mancha, fuga, deformación clara). Si un rasgo llamativo (p. ej. un color inusual) podría deberse igual de bien a una variedad/modelo/cultivar normal que a un problema real, dilo explícitamente como duda abierta en vez de decidir por la interpretación negativa."
-Analiza la imagen en detalle SIEMPRE, sin que el usuario tenga que pedirlo explícitamente en el texto — la sola presencia de una imagen adjunta ya es la petición de analizarla. Además, si el texto de la petición da alguna pista concreta sobre qué mirar en la imagen (p. ej. "hay una etiqueta, fíjate si está en mal estado para intentar averiguar qué ponía"), profundiza específicamente en esa pista dentro de imageContent con el máximo detalle posible — intenta leer o describir lo que se alcance a ver aunque esté borroso, dañado, girado o parcialmente ilegible, indicando el nivel de certeza de esa lectura, en vez de quedarte en una descripción genérica del objeto.
+Se adjunta también una imagen como contexto visual (p. ej. una avería, un objeto, un documento, una máquina, una planta, un vehículo). Añade también este campo al JSON:
+  "imageContent": "identificación objetiva y neutral de qué muestra la imagen — qué tipo de objeto/sujeto es, con la identificación más específica posible (especie, modelo, marca) y sus características visibles reales (color, forma, textura, estado aparente). NO concluyas aquí un diagnóstico ni asumas daño, avería, enfermedad o mal estado salvo que haya evidencia visual inequívoca (rotura, mancha, fuga, deformación clara). Si un rasgo llamativo (p. ej. un color inusual) podría deberse igual de bien a una variedad/modelo/cultivar normal que a un problema real, dilo explícitamente como duda abierta en vez de decidir por la interpretación negativa."
 Usa esa identificación de imageContent como base real para inferredGoal, subGoals y requiredCapabilities (no la ignores ni te limites a describirla sin usarla) — pero mantén imageContent como la lectura visual pura, separada de cualquier interpretación o diagnóstico.` : "");
 
-  const providers = [];
-  if (apiKeyClaude) providers.push({ name: "Claude", call: () => callClaudeAPI(rawGoal, apiKeyClaude, signal, sys, imageData) });
-  if (apiKeyGemini) providers.push({ name: "Gemini", call: () => callGeminiAPI(rawGoal, apiKeyGemini, signal, sys, imageData) });
-  if (genericConfig?.apiKey && genericConfig?.baseUrl && genericConfig?.model) providers.push({ name: "el proveedor genérico", call: () => callGenericAPI(rawGoal, genericConfig.baseUrl, genericConfig.apiKey, genericConfig.model, signal, sys, imageData) });
-
-  for (let i = 0; i < providers.length; i++) {
+  if (apiKeyClaude) {
     try {
-      return parseAiUnderstandingResponse(await providers[i].call());
+      return parseAiUnderstandingResponse(await callClaudeAPI(rawGoal, apiKeyClaude, signal, sys, imageData));
     } catch (e) {
       if (e.name === "AbortError") throw e;
-      if (i === providers.length - 1) throw e;
-      logTrace("INTELLIGENCE", `${providers[i].name} no disponible (${e.message}). Probando con el siguiente proveedor...`, "warn");
+      if (!apiKeyGemini) throw e;
+      logTrace("INTELLIGENCE", `Claude no disponible (${e.message}). Probando con Gemini como respaldo...`, "warn");
     }
   }
+  return parseAiUnderstandingResponse(await callGeminiAPI(rawGoal, apiKeyGemini, signal, sys, imageData));
 }
 
 // ==========================================
@@ -1214,18 +1164,6 @@ const DefinitionOfDoneEngine = {
     if (hasCap(/COST/)) completionCriteria.push("Debe incluirse una estimación de costes justificada, no una cifra sin desglosar.");
     if (hasCap(/RISK/)) completionCriteria.push("Deben identificarse explícitamente los riesgos o modos de fallo relevantes.");
     if (hasCap(/PRICE|PRODUCT|COMPARISON/)) completionCriteria.push("La comparación debe incluir al menos dos alternativas con criterios explícitos, no una única recomendación sin contraste.");
-    // Fix v500: 3 lecciones reales de una conversación (fuera de esta
-    // herramienta) donde el usuario tuvo que corregir manualmente a la IA:
-    // una tienda física recomendada llevaba cerrada más de un año, la
-    // búsqueda se quedó solo en el municipio exacto en vez de la zona, y no
-    // quedaba claro qué opciones eran tienda física y cuáles online (ni el
-    // enlace de las online). No podemos forzar desde aquí que la IA verifique
-    // el estado real de una tienda concreta (depende de su propia búsqueda),
-    // pero sí podemos exigir la estructura y la interpretación por defecto.
-    if (hasCap(/PRICE|PRODUCT|COMPARISON/)) {
-      completionCriteria.push("Cualquier medida, tamaño o cantidad que dé el usuario se trata como orientativa, no como especificación estricta, salvo que el usuario diga explícitamente que es un requisito exacto.");
-      completionCriteria.push("Si la petición busca dónde conseguir/comprar algo: cada opción debe indicar si es tienda física (con dirección) o tienda online (con el enlace directo al producto); y si se menciona una ubicación concreta, interprétala como la zona a su alrededor, no solo el municipio exacto, salvo que el usuario restrinja la búsqueda a ese lugar literal.");
-    }
     if (understanding.ambiguities && understanding.ambiguities.length) completionCriteria.push(`Deben resolverse o declararse explícitamente estas ambigüedades: ${understanding.ambiguities.join('; ')}.`);
     if (understanding.assumedDefaults && Object.keys(understanding.assumedDefaults).length) completionCriteria.push("Deben respetarse las asunciones por defecto declaradas (sección 1.5), salvo que el usuario indique lo contrario.");
     if (understanding.urgency) completionCriteria.push("La petición señala urgencia/criticidad: prioriza una validación exhaustiva sin omitir pasos por rapidez.");
@@ -1346,7 +1284,7 @@ const SerializerSystem = {
 :: TASK_ID = ${ir.requestId}
 :: STATUS = ${ir.validation.status} (${passedCount}/${ir.validation.checks.length})
 :: ANALYSIS_SOURCE = ${u.source === 'ai' ? 'ai (comprensión semántica real)' : 'local (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${u.aiFallbackReason}]` : ''}
-:: LANGUAGE = ${u.lang || 'es'}${u.imageAnalyzed ? `\n:: IMAGE_ATTACHED = sí${u.imageCount > 1 ? ` (${u.imageCount} imágenes)` : ''}, analizada por la IA junto con el texto` + (u.imageContent ? `\n:: IMAGE_CONTENT = ${u.imageContent.replace(/\n/g, ' ')}\n:: IMAGE_REMINDER = si vas a ejecutar este contrato en OTRA conversación/IA, vuelve a adjuntar ahí la(s) imagen(es) original(es) — IMAGE_CONTENT es solo un resumen de apoyo, no sustituye verla(s) directamente` : '') : ''}
+:: LANGUAGE = ${u.lang || 'es'}${u.imageAnalyzed ? '\n:: IMAGE_ATTACHED = sí, analizada por la IA junto con el texto' + (u.imageContent ? `\n:: IMAGE_CONTENT = ${u.imageContent.replace(/\n/g, ' ')}` : '') : ''}
 
 :: EXPLICIT_GOAL
 > ${u.explicitGoal.replace(/\n/g, '\n> ')}
@@ -1426,7 +1364,7 @@ ${ir.artifacts.base ? `ARTEFACTO BASE (v1):\n${ir.artifacts.base}\n` : ''}${ir.a
 -----------------------------------
 TASK ID: ${ir.requestId}
 FUENTE DEL ANÁLISIS SEMÁNTICO: ${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${u.aiFallbackReason}]` : ''}
-IDIOMA DE ANÁLISIS: ${u.lang || 'es'}${u.imageAnalyzed ? `\nIMAGEN ADJUNTA: sí${u.imageCount > 1 ? ` (${u.imageCount} imágenes)` : ''}, analizada por la IA junto con el texto de la petición` + (u.imageContent ? `\nCONTENIDO DE LA IMAGEN (identificación objetiva, separada del diagnóstico): ${u.imageContent}\nRECORDATORIO: si vas a ejecutar este contrato en OTRA conversación/IA, vuelve a adjuntar ahí la(s) imagen(es) original(es) — el texto de arriba es solo un resumen de apoyo, no sustituye verla(s) directamente.` : '') : ''}
+IDIOMA DE ANÁLISIS: ${u.lang || 'es'}${u.imageAnalyzed ? '\nIMAGEN ADJUNTA: sí, analizada por la IA junto con el texto de la petición' + (u.imageContent ? `\nCONTENIDO DE LA IMAGEN (identificación objetiva, separada del diagnóstico): ${u.imageContent}` : '') : ''}
 
 1. UNIVERSAL REQUEST UNDERSTANDING
 ----------------------------------
@@ -1512,9 +1450,8 @@ ${artifactsSection}
 
   <analysis_source method="${u.source}">${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${escXml(u.aiFallbackReason)}]` : ''}</analysis_source>
   <analysis_language>${escXml(u.lang || 'es')}</analysis_language>
-  ${u.imageAnalyzed ? `<image_attached>sí${u.imageCount > 1 ? ` (${u.imageCount} imágenes)` : ''}, analizada por la IA junto con el texto de la petición</image_attached>` : ''}
+  ${u.imageAnalyzed ? '<image_attached>sí, analizada por la IA junto con el texto de la petición</image_attached>' : ''}
   ${u.imageAnalyzed && u.imageContent ? `<image_content>${escXml(u.imageContent)}</image_content>` : ''}
-  ${u.imageAnalyzed && u.imageContent ? `<image_reminder>si vas a ejecutar este contrato en OTRA conversación/IA, vuelve a adjuntar ahí la(s) imagen(es) original(es) — image_content es solo un resumen de apoyo, no sustituye verla(s) directamente.</image_reminder>` : ''}
 
   <request_understanding>
     <explicit_goal>${escXml(u.explicitGoal)}</explicit_goal>
@@ -1608,7 +1545,7 @@ ${ir.artifacts.base ? (() => { const f = mdFenceFor(ir.artifacts.base); return `
 
 ## 0. Fuente del análisis
 **Task ID:** ${ir.requestId}
-**Fuente del análisis semántico:** ${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${u.aiFallbackReason}]` : ''}${u.imageAnalyzed ? `\n**Imagen adjunta:** sí${u.imageCount > 1 ? ` (${u.imageCount} imágenes)` : ''}, analizada por la IA junto con el texto de la petición` + (u.imageContent ? `\n**Contenido de la imagen (identificación objetiva, separada del diagnóstico):** ${u.imageContent}\n**Recordatorio:** si vas a ejecutar este contrato en OTRA conversación/IA, vuelve a adjuntar ahí la(s) imagen(es) original(es) — el texto de arriba es solo un resumen de apoyo, no sustituye verla(s) directamente.` : '') : ''}
+**Fuente del análisis semántico:** ${u.source === 'ai' ? 'IA (comprensión semántica real)' : 'LOCAL (heurística por reglas — aproximada, revisar antes de confiar del todo)'}${u.aiFallbackReason ? ` [SE INTENTÓ IA Y FALLÓ: ${u.aiFallbackReason}]` : ''}${u.imageAnalyzed ? '\n**Imagen adjunta:** sí, analizada por la IA junto con el texto de la petición' + (u.imageContent ? `\n**Contenido de la imagen (identificación objetiva, separada del diagnóstico):** ${u.imageContent}` : '') : ''}
 **Idioma de análisis:** ${u.lang || 'es'}
 
 ## 1. Comprensión de la petición
@@ -1679,8 +1616,8 @@ ${artifactsMd}
       ? `ARTIFACTS: base=${ir.artifacts.base ? 'provided' : 'none'}; modified=${ir.artifacts.modified ? 'provided' : 'none'} (ver adapter GENERIC/CLAUDE/CHATGPT/AKI para el contenido completo)\n`
       : '';
 
-    return `TASK[${ir.requestId}] SRC=${u.source}${u.aiFallbackReason ? `(fallback:${u.aiFallbackReason})` : ''} LANG=${u.lang || 'es'}${u.imageAnalyzed ? ` IMG=sí(${u.imageCount || 1})` : ''} STATUS=${ir.validation.status} (${passedCount}/${ir.validation.checks.length})
-${u.imageAnalyzed && u.imageContent ? `IMG_CONTENT="${u.imageContent.replace(/\n/g, ' ')}"\nIMG_REMINDER="si usas esto en otra IA, vuelve a adjuntar la imagen original, este texto no la sustituye"\n` : ''}
+    return `TASK[${ir.requestId}] SRC=${u.source}${u.aiFallbackReason ? `(fallback:${u.aiFallbackReason})` : ''} LANG=${u.lang || 'es'}${u.imageAnalyzed ? ' IMG=sí' : ''} STATUS=${ir.validation.status} (${passedCount}/${ir.validation.checks.length})
+${u.imageAnalyzed && u.imageContent ? `IMG_CONTENT="${u.imageContent.replace(/\n/g, ' ')}"\n` : ''}
 GOAL.explicit="${u.explicitGoal.replace(/\n/g, ' ')}"
 GOAL.inferred="${u.inferredGoal}"
 OUTCOME="${u.desiredOutcome}"
@@ -1697,7 +1634,7 @@ ${artifactsStr}INSTRUCTIONS: Aplica DEFAULTS salvo indicación contraria; resuel
 };
 
 // --- MASTER PIPELINE V401 ---
-const compilarV401 = async (input, artifactText, modifiedText, adapter, apiKeyClaude, apiKeyGemini, langOverride, signal, imageData, genericConfig) => {
+const compilarV401 = async (input, artifactText, modifiedText, adapter, apiKeyClaude, apiKeyGemini, langOverride, signal, imageData) => {
   traceHistory = [];
   logTrace("SYS", "Iniciando Pipeline V401 (AI-Core Goal-Driven)...");
 
@@ -1707,20 +1644,19 @@ const compilarV401 = async (input, artifactText, modifiedText, adapter, apiKeyCl
     const requestId = "REQ-" + Math.random().toString(36).substring(2, 9).toUpperCase();
     logTrace("CONTROL", `Preservación OK. ID: ${requestId}`);
 
-    const hasGenericConfig = !!(genericConfig?.apiKey && genericConfig?.baseUrl && genericConfig?.model);
     let understanding;
-    if (apiKeyClaude || apiKeyGemini || hasGenericConfig) {
+    if (apiKeyClaude || apiKeyGemini) {
       // Solo se intenta la llamada de red si el usuario ha rellenado al menos
       // una key de forma explícita. Sin ninguna key, CERO peticiones salen
       // del equipo.
       try {
-        understanding = await aiUnderstandingDual(input, apiKeyClaude, apiKeyGemini, signal, imageData, genericConfig);
+        understanding = await aiUnderstandingDual(input, apiKeyClaude, apiKeyGemini, signal, imageData);
         // Fix v494: transparencia — igual que aiFallbackReason viaja pegado al
         // understanding para que los serializadores lo impriman, esto deja
         // constancia en el contrato final de que una imagen formó parte real
         // del análisis (antes no quedaba ningún rastro de ello en el texto
         // compilado, solo se reflejaba indirectamente en el contenido).
-        if (imageData && imageData.length) { understanding.imageAnalyzed = true; understanding.imageCount = imageData.length; }
+        if (imageData) understanding.imageAnalyzed = true;
         logTrace("INTELLIGENCE", `Comprensión semántica por IA. Goal: [${understanding.inferredGoal}]`);
       } catch (e) {
         // Una cancelación del usuario (botón "Cancelar generación") no es un
@@ -1734,22 +1670,6 @@ const compilarV401 = async (input, artifactText, modifiedText, adapter, apiKeyCl
         // parecía que ni se había intentado. Ahora el motivo viaja con el
         // understanding y los serializadores lo imprimen junto a la fuente.
         understanding.aiFallbackReason = e.message;
-        // Fix v499: bug real reportado por el usuario — si había imagen(es)
-        // adjuntas y la IA fallaba, se caía al motor local (que no tiene
-        // capacidad de visión) y la imagen desaparecía sin dejar NINGÚN
-        // rastro en el contrato: ni "IMAGEN ADJUNTA", ni aviso de que no se
-        // analizó. Una petición como "analiza la foto, se me ha roto la
-        // tapa" se compilaba sin la foto y sin que nadie se enterase. Ahora
-        // se declara explícitamente como pregunta pendiente real, para que
-        // el ejecutor final la trate como imprescindible antes de responder
-        // (no es un caso de bajo riesgo: recomendar sin ver la imagen puede
-        // llevar a comprar la pieza equivocada).
-        if (imageData && imageData.length) {
-          const plural = imageData.length > 1;
-          understanding.ambiguities.push(
-            `Se adjuntó${plural ? 'n' : ''} ${imageData.length} imagen${plural ? 'es' : ''} para el análisis, pero no ${plural ? 'pudieron' : 'pudo'} ser analizada${plural ? 's' : ''}: la IA no estaba disponible (${e.message}) y el motor local no tiene capacidad de visión. Vuelve a intentar la compilación con la IA activa (revisa la API key), o describe el contenido de la imagen en el texto de la petición.`
-          );
-        }
         logTrace("INTELLIGENCE", `IA no disponible (${e.message}). Usando análisis local.`, "warn");
       }
     } else {
@@ -1840,7 +1760,7 @@ const cancelarCompilacionV401 = () => {
 // no, según si se recuerda la key), y al cargar la página.
 const updateApiKeyStatusDot = () => {
   const dot = $('apiKeyStatusDot');
-  const hasKey = !!($('apiKeyClaude')?.value?.trim() || $('apiKeyGemini')?.value?.trim() || $('apiKeyGeneric')?.value?.trim());
+  const hasKey = !!($('apiKeyClaude')?.value?.trim() || $('apiKeyGemini')?.value?.trim());
   if (dot) {
     dot.style.background = hasKey ? 'var(--ok-text)' : 'var(--bad)';
     dot.title = hasKey ? 'Hay una API key introducida' : 'Sin ninguna API key introducida';
@@ -1861,30 +1781,21 @@ const updateApiKeyStatusDot = () => {
   // avisar, aunque el usuario fuera a pegar la key correcta acto seguido
   // (bug real encontrado en pruebas). No hace falta este borrado anticipado
   // de todos modos: compilarV401 ya solo envía la imagen si usandoIA es
-  // cierto, y clearAttachedImages() ya se ejecuta siempre al terminar
+  // cierto, y clearAttachedImage() ya se ejecuta siempre al terminar
   // cualquier compilación — el caso "compilar en local sin key" nunca llega
   // a usar ni filtrar la imagen adjunta.
 };
 
-// Imágenes adjuntas para que la IA las analice junto con la petición
-// (petición del usuario: "esto es un fallo en esta máquina, analiza y dime
-// soluciones" + foto de la avería + foto general de la máquina para
-// identificar el modelo). Solo tiene efecto si hay una API key activa — el
-// motor local nunca ve las imágenes, no tiene capacidad de visión.
-// Tope deliberadamente bajo (no "cuantas quieras"): cada imagen adicional
-// suma coste/tokens y satura el análisis en vez de ayudar — a partir de un
-// puñado de fotos deja de ser "dame más contexto" y pasa a ser ruido.
-let attachedImages = [];
-const MAX_ATTACHED_IMAGES = 3;
+// Imagen adjunta para que la IA la analice junto con la petición (petición
+// del usuario: "esto es un fallo en esta máquina, analiza y dime
+// soluciones" + foto). Solo tiene efecto si hay una API key activa — el
+// motor local nunca ve la imagen, no tiene capacidad de visión.
+let attachedImage = null;
 
 const onCameraButtonClick = () => {
-  const hasKey = !!($('apiKeyClaude')?.value?.trim() || $('apiKeyGemini')?.value?.trim() || $('apiKeyGeneric')?.value?.trim());
+  const hasKey = !!($('apiKeyClaude')?.value?.trim() || $('apiKeyGemini')?.value?.trim());
   if (!hasKey) {
     alert("Para adjuntar una imagen necesitas introducir una API key (Claude o Gemini) en «Avanzado» — sin key, el análisis es local y no puede ver imágenes.");
-    return;
-  }
-  if (attachedImages.length >= MAX_ATTACHED_IMAGES) {
-    alert(`Ya tienes ${MAX_ATTACHED_IMAGES} imágenes adjuntas (el máximo). Quita alguna antes de añadir otra.`);
     return;
   }
   $('imageInput')?.click();
@@ -1896,31 +1807,18 @@ const onImageSelected = (event) => {
   const reader = new FileReader();
   reader.onload = () => {
     const [, base64] = String(reader.result).split(",", 2).length > 1 ? String(reader.result).split(",") : [null, ""];
-    attachedImages.push({ data: base64, mediaType: file.type || "image/jpeg", name: file.name });
-    renderAttachedImagesInfo();
-    logTrace("SYS", `Imagen adjunta: ${file.name} (${attachedImages.length}/${MAX_ATTACHED_IMAGES}, se enviará a la IA junto con la petición).`, "info");
+    attachedImage = { data: base64, mediaType: file.type || "image/jpeg" };
+    if ($('imageAttachedName')) $('imageAttachedName').textContent = file.name;
+    if ($('imageAttachedInfo')) $('imageAttachedInfo').style.display = "block";
+    logTrace("SYS", `Imagen adjunta: ${file.name} (se enviará a la IA junto con la petición).`, "info");
   };
   reader.readAsDataURL(file);
   event.target.value = "";
 };
 
-const renderAttachedImagesInfo = () => {
-  const el = $('imageAttachedInfo');
-  if (!el) return;
-  if (!attachedImages.length) { el.style.display = "none"; el.innerHTML = ""; return; }
-  el.style.display = "block";
-  const items = attachedImages.map((img, i) => `${escapeHTML(img.name || ('imagen ' + (i + 1)))} <a href="#" onclick="removeAttachedImage(${i}); return false;" style="color:var(--bad);">quitar</a>`).join(' · ');
-  el.innerHTML = `📎 ${items}`;
-};
-
-const removeAttachedImage = index => {
-  attachedImages.splice(index, 1);
-  renderAttachedImagesInfo();
-};
-
-const clearAttachedImages = () => {
-  attachedImages = [];
-  if ($('imageAttachedInfo')) { $('imageAttachedInfo').style.display = "none"; $('imageAttachedInfo').innerHTML = ""; }
+const clearAttachedImage = () => {
+  attachedImage = null;
+  if ($('imageAttachedInfo')) $('imageAttachedInfo').style.display = "none";
   if ($('imageInput')) $('imageInput').value = "";
 };
 
@@ -1933,13 +1831,7 @@ const ejecutarCompilacionV401 = async () => {
   // pero desmarcada (p. ej. para probar solo con la otra) sin borrarla.
   const keyClaude = $('useClaude')?.checked ? ($('apiKeyClaude')?.value?.trim() || "") : "";
   const keyGemini = $('useGemini')?.checked ? ($('apiKeyGemini')?.value?.trim() || "") : "";
-  const genericConfig = $('useGeneric')?.checked ? {
-    apiKey: $('apiKeyGeneric')?.value?.trim() || "",
-    baseUrl: $('genericBaseUrl')?.value?.trim() || "",
-    model: $('genericModel')?.value?.trim() || ""
-  } : null;
-  const hasGeneric = !!(genericConfig?.apiKey && genericConfig?.baseUrl && genericConfig?.model);
-  const usandoIA = !!(keyClaude || keyGemini || hasGeneric);
+  const usandoIA = !!(keyClaude || keyGemini);
   if (promptEl) promptEl.textContent = "Generando el prompt (analizando con IA si está disponible)...";
   if (btn) { btn.disabled = true; btn.textContent = "⏳ Generando Prompt..."; }
   if (cancelBtn && usandoIA) cancelBtn.style.display = "block";
@@ -1948,7 +1840,7 @@ const ejecutarCompilacionV401 = async () => {
   const langSel = $('requestLanguage')?.value || "auto";
   // La imagen solo se manda si hay al menos una key activa (el botón ya lo
   // impide, pero se repite aquí como defensa en profundidad).
-  const imagenParaEnviar = usandoIA && attachedImages.length ? attachedImages : null;
+  const imagenParaEnviar = usandoIA ? attachedImage : null;
   const res = await compilarV401(
     $('userRequest')?.value || "",
     $('currentArtifact')?.value || "",
@@ -1958,8 +1850,7 @@ const ejecutarCompilacionV401 = async () => {
     keyGemini,
     langSel === "auto" ? undefined : langSel,
     currentAbortController.signal,
-    imagenParaEnviar,
-    genericConfig
+    imagenParaEnviar
   );
   currentAbortController = null;
 
@@ -1967,12 +1858,37 @@ const ejecutarCompilacionV401 = async () => {
   if (cancelBtn) cancelBtn.style.display = "none";
   // Fix v410: paridad con wizard.html — la key no debe persistir en el DOM
   // tras usarse (defensa en profundidad; nunca se guarda, solo vivía en este
-  // campo mientras se compilaba). La imagen tampoco: es de un solo uso, por
-  // petición concreta — se limpia siempre, haya ido bien o mal.
-  if ($('apiKeyClaude')) $('apiKeyClaude').value = "";
-  if ($('apiKeyGemini')) $('apiKeyGemini').value = "";
-  if ($('apiKeyGeneric')) $('apiKeyGeneric').value = "";
-  clearAttachedImages();
+  // campo mientras se compilaba), salvo que "Recordar" esté activo. La
+  // imagen siempre es de un solo uso, por petición concreta — se limpia
+  // siempre, haya ido bien o mal, recuerdes la key o no.
+  // Fix v493: bug real reportado por el usuario — si desmarcabas "usar
+  // Claude/Gemini" (para que ESTA compilación concreta fuera solo local) sin
+  // querer borrar la key guardada, el bloque de abajo usaba keyClaude/
+  // keyGemini (que ya venían a "" por la casilla desmarcada) para decidir si
+  // recordar, así que trataba "no la uso esta vez" como "no hay key" y la
+  // borraba de localStorage aunque "Recordar" siguiera marcado. Ahora se lee
+  // el valor bruto del campo, independiente de si esta compilación en
+  // concreto ha usado ese proveedor o no — son dos decisiones distintas.
+  const rawKeyClaude = $('apiKeyClaude')?.value?.trim() || "";
+  const rawKeyGemini = $('apiKeyGemini')?.value?.trim() || "";
+  if ($('rememberKey')?.checked && (rawKeyClaude || rawKeyGemini)) {
+    try {
+      if (rawKeyClaude) localStorage.setItem('universalPromptCompiler_savedApiKeyClaude', rawKeyClaude); else localStorage.removeItem('universalPromptCompiler_savedApiKeyClaude');
+      if (rawKeyGemini) localStorage.setItem('universalPromptCompiler_savedApiKeyGemini', rawKeyGemini); else localStorage.removeItem('universalPromptCompiler_savedApiKeyGemini');
+      localStorage.setItem('universalPromptCompiler_useClaude', $('useClaude')?.checked ? '1' : '0');
+      localStorage.setItem('universalPromptCompiler_useGemini', $('useGemini')?.checked ? '1' : '0');
+    } catch (e) {}
+  } else {
+    try {
+      localStorage.removeItem('universalPromptCompiler_savedApiKeyClaude');
+      localStorage.removeItem('universalPromptCompiler_savedApiKeyGemini');
+      localStorage.removeItem('universalPromptCompiler_useClaude');
+      localStorage.removeItem('universalPromptCompiler_useGemini');
+    } catch (e) {}
+    if ($('apiKeyClaude')) $('apiKeyClaude').value = "";
+    if ($('apiKeyGemini')) $('apiKeyGemini').value = "";
+  }
+  clearAttachedImage();
   updateApiKeyStatusDot();
 
   if (res.error) {
@@ -2008,8 +1924,6 @@ const ejecutarTestsV401 = async () => {
     // verifica de verdad su propósito: que se añaden criterios específicos
     // de dominio, no solo los 3 base.
     { id: "T-04", name: "Anti-Shallowness Enforcer: se añaden criterios específicos de dominio, no solo los 3 base (antes tautológico: cualquier compilación exitosa pasaba)", in: "Compara ollas de dos marcas distintas y dime cuál comprar", assert: r => !r.error && r.ir.definitionOfDone.completionCriteria.some(c => c.includes("al menos dos alternativas")) },
-    { id: "T-500", name: "Lección real (conversación del paellero, fuera de la herramienta): peticiones de compra/comparación exigen tratar medidas como orientativas y distinguir tienda física (con dirección) de online (con enlace), interpretando la ubicación como zona y no solo el municipio exacto (fix v500)", in: "Compara paelleros de gas de unos 45cm y dime cuál comprar cerca de Torrejón de Ardoz", assert: r => !r.error && r.ir.definitionOfDone.completionCriteria.some(c => c.includes("orientativa") && c.includes("no como especificación estricta")) && r.ir.definitionOfDone.completionCriteria.some(c => c.includes("tienda física") && c.includes("tienda online") && c.includes("zona a su alrededor")) },
-    { id: "T-501", name: "Control: una petición de compra SIN ubicación ni medida (fix v500) sigue recibiendo las mismas 2 reglas — son estructurales del dominio, no condicionadas a detectar un lugar/medida concretos en el texto", in: "Compara dos aspiradoras y dime cuál comprar", assert: r => !r.error && r.ir.definitionOfDone.completionCriteria.some(c => c.includes("orientativa")) && r.ir.definitionOfDone.completionCriteria.some(c => c.includes("tienda física")) },
     { id: "T-05", name: "Multi-dominio: ningún subgoal se pierde (fix exclusión mutua)", in: "Quiero crear un sistema automático de control con una app HTML que lo gestione", assert: r => {
         if (r.error) return false;
         const objectives = r.ir.goalGraph.subGoals.map(sg => sg.objective.toLowerCase()).join(' ');
@@ -2927,7 +2841,7 @@ const ejecutarTestsV401 = async () => {
         const of = window.fetch;
         let body = null;
         window.fetch = (url, opts) => { body = JSON.parse(opts.body); return Promise.resolve({ ok: true, json: async () => ({ content: [{ text: JSON.stringify({ explicitGoal:"x", inferredGoal:"y", desiredOutcome:"z", userPreferences:[], userConstraints:[], deliverablesExpected:["a"], subGoals:[{id:"SG-01",objective:"o",priority:"HIGH"}], requiredCapabilities:["IMG_OK"], ambiguities:[] }) }] }) }); };
-        try { await aiUnderstandingDual("t", "sk-ant-fake", "", undefined, [{ data: "ZmFrZQ==", mediaType: "image/jpeg" }]); } finally { window.fetch = of; }
+        try { await aiUnderstandingDual("t", "sk-ant-fake", "", undefined, { data: "ZmFrZQ==", mediaType: "image/jpeg" }); } finally { window.fetch = of; }
         const c = body.messages[0].content;
         return Array.isArray(c) && c.some(b => b.type === "text" && b.text === "t") && c.some(b => b.type === "image" && b.source.media_type === "image/jpeg" && b.source.data === "ZmFrZQ==") && body.system.includes("imagen");
       } },
@@ -2935,7 +2849,7 @@ const ejecutarTestsV401 = async () => {
         const of = window.fetch;
         let body = null;
         window.fetch = (url, opts) => { body = JSON.parse(opts.body); return Promise.resolve({ ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify({ explicitGoal:"x", inferredGoal:"y", desiredOutcome:"z", userPreferences:[], userConstraints:[], deliverablesExpected:["a"], subGoals:[{id:"SG-01",objective:"o",priority:"HIGH"}], requiredCapabilities:["IMG_OK"], ambiguities:[] }) }] } }] }) }); };
-        try { await aiUnderstandingDual("t", "", "AIzaFake", undefined, [{ data: "ZmFrZQ==", mediaType: "image/png" }]); } finally { window.fetch = of; }
+        try { await aiUnderstandingDual("t", "", "AIzaFake", undefined, { data: "ZmFrZQ==", mediaType: "image/png" }); } finally { window.fetch = of; }
         const parts = body.contents[0].parts;
         return parts.some(p => p.text === "t") && parts.some(p => p.inline_data && p.inline_data.mime_type === "image/png" && p.inline_data.data === "ZmFrZQ==");
       } },
@@ -2949,7 +2863,7 @@ const ejecutarTestsV401 = async () => {
     { id: "T-AI-12", name: "Transparencia: el contrato final declara 'IMAGEN ADJUNTA' cuando la IA analizó una foto, en los 5 formatos de salida (fix v494, ciclo 19)", run: async () => {
         const of = window.fetch;
         window.fetch = () => Promise.resolve({ ok: true, json: async () => ({ content: [{ text: JSON.stringify({ explicitGoal:"x", inferredGoal:"y", desiredOutcome:"z", userPreferences:[], userConstraints:[], deliverablesExpected:["a"], subGoals:[{id:"SG-01",objective:"o",priority:"HIGH"}], requiredCapabilities:["T"], ambiguities:[] }) }] }) });
-        const fakeImage = [{ data: "ZmFrZQ==", mediaType: "image/jpeg" }];
+        const fakeImage = { data: "ZmFrZQ==", mediaType: "image/jpeg" };
         let ok = true;
         try {
           for (const adapter of ["GENERIC", "AKI", "CLAUDE", "CHATGPT", "LOCAL"]) {
@@ -2966,7 +2880,7 @@ const ejecutarTestsV401 = async () => {
         const of = window.fetch;
         let body = null;
         window.fetch = (url, opts) => { body = JSON.parse(opts.body); return Promise.resolve({ ok: true, json: async () => ({ content: [{ text: JSON.stringify({ explicitGoal:"x", inferredGoal:"y", desiredOutcome:"z", userPreferences:[], userConstraints:[], deliverablesExpected:["a"], subGoals:[{id:"SG-01",objective:"o",priority:"HIGH"}], requiredCapabilities:["T"], ambiguities:[] }) }] }) }); };
-        const fakeImage = [{ data: "ZmFrZQ==", mediaType: "image/jpeg" }];
+        const fakeImage = { data: "ZmFrZQ==", mediaType: "image/jpeg" };
         let r;
         try {
           r = await compilarV401("este boton no se ve bien en modo oscuro", "<button class='btn'>Hola</button>", "", "GENERIC", "sk-ant-fake", "", "es", undefined, fakeImage);
@@ -2974,84 +2888,68 @@ const ejecutarTestsV401 = async () => {
         return r.executablePrompt.includes("ARTEFACTO BASE") && r.executablePrompt.includes("btn") && r.executablePrompt.includes("IMAGEN ADJUNTA")
           && Array.isArray(body.messages[0].content) && body.messages[0].content.some(b => b.type === "image");
       } },
-    { id: "T-AI-14", name: "Editar momentáneamente el campo de la key (p. ej. para pegar una nueva) ya NO borra las fotos ya adjuntas (bug real, fix v494)", run: async () => {
-        const savedKey = $('apiKeyClaude')?.value, savedImgs = attachedImages, savedInfoHtml = $('imageAttachedInfo')?.innerHTML;
+    { id: "T-AI-14", name: "Editar momentáneamente el campo de la key (p. ej. para pegar una nueva) ya NO borra la foto ya adjunta (bug real, fix v494)", run: async () => {
+        const savedKey = $('apiKeyClaude')?.value, savedImg = attachedImage, savedInfoDisplay = $('imageAttachedInfo')?.style.display;
         try {
           if ($('apiKeyClaude')) $('apiKeyClaude').value = "sk-ant-old";
           updateApiKeyStatusDot();
-          attachedImages = [{ data: "ZmFrZQ==", mediaType: "image/jpeg", name: "a.jpg" }];
+          attachedImage = { data: "ZmFrZQ==", mediaType: "image/jpeg" };
           if ($('apiKeyClaude')) $('apiKeyClaude').value = "";
           updateApiKeyStatusDot();
-          const survivedMomentaryEdit = attachedImages.length === 1;
+          const survivedMomentaryEdit = attachedImage !== null;
           if ($('apiKeyClaude')) $('apiKeyClaude').value = "sk-ant-new";
           updateApiKeyStatusDot();
-          return survivedMomentaryEdit && attachedImages.length === 1;
+          return survivedMomentaryEdit && attachedImage !== null;
         } finally {
           if ($('apiKeyClaude')) $('apiKeyClaude').value = savedKey || "";
-          attachedImages = savedImgs;
-          if ($('imageAttachedInfo')) $('imageAttachedInfo').innerHTML = savedInfoHtml || "";
+          attachedImage = savedImg;
+          if ($('imageAttachedInfo')) $('imageAttachedInfo').style.display = savedInfoDisplay || "none";
           updateApiKeyStatusDot();
         }
       } },
-    { id: "T-AI-15", name: "'Borrar todo' (clearAllInputs) también limpia las imágenes adjuntas — reseteo completo real, no parcial (bug real, fix v494)", run: async () => {
-        const savedImgs = attachedImages, savedInfoDisplay = $('imageAttachedInfo')?.style.display, savedRequest = $('userRequest')?.value;
+    { id: "T-AI-15", name: "'Borrar todo' (clearAllInputs) también limpia la imagen adjunta — reseteo completo real, no parcial (bug real, fix v494)", run: async () => {
+        const savedImg = attachedImage, savedInfoDisplay = $('imageAttachedInfo')?.style.display, savedRequest = $('userRequest')?.value;
         const origConfirm = window.confirm;
         try {
-          attachedImages = [{ data: "ZmFrZQ==", mediaType: "image/jpeg", name: "a.jpg" }, { data: "ZmFrZQ==", mediaType: "image/jpeg", name: "b.jpg" }];
-          renderAttachedImagesInfo();
+          attachedImage = { data: "ZmFrZQ==", mediaType: "image/jpeg" };
+          if ($('imageAttachedInfo')) $('imageAttachedInfo').style.display = "block";
           if ($('userRequest')) $('userRequest').value = "algo";
           window.confirm = () => true;
           clearAllInputs();
-          return attachedImages.length === 0 && $('imageAttachedInfo')?.style.display === "none";
+          return attachedImage === null && $('imageAttachedInfo')?.style.display === "none";
         } finally {
           window.confirm = origConfirm;
-          attachedImages = savedImgs;
+          attachedImage = savedImg;
           if ($('imageAttachedInfo')) $('imageAttachedInfo').style.display = savedInfoDisplay || "none";
           if ($('userRequest')) $('userRequest').value = savedRequest || "";
         }
       } },
     { id: "T-AI-16", name: "Cargar una petición del historial limpia cualquier imagen adjunta actual — el historial nunca guarda fotos, no debe colarse una imagen de otra petición (bug real, fix v494)", run: async () => {
-        const savedImgs = attachedImages, savedInfoDisplay = $('imageAttachedInfo')?.style.display, savedRequest = $('userRequest')?.value, savedHistory = localStorage.getItem(STORAGE_KEY);
+        const savedImg = attachedImage, savedInfoDisplay = $('imageAttachedInfo')?.style.display, savedRequest = $('userRequest')?.value, savedHistory = localStorage.getItem(STORAGE_KEY);
         try {
-          attachedImages = [{ data: "ZmFrZQ==", mediaType: "image/jpeg", name: "a.jpg" }];
-          renderAttachedImagesInfo();
+          attachedImage = { data: "ZmFrZQ==", mediaType: "image/jpeg" };
+          if ($('imageAttachedInfo')) $('imageAttachedInfo').style.display = "block";
           saveToHistory({ timestamp: Date.now(), request: "peticion vieja de prueba", validation: { status: "VALIDATED" }, executablePrompt: "prompt viejo" });
           loadFromHistory(0);
-          return attachedImages.length === 0 && $('imageAttachedInfo')?.style.display === "none" && $('userRequest')?.value === "peticion vieja de prueba";
+          return attachedImage === null && $('imageAttachedInfo')?.style.display === "none" && $('userRequest')?.value === "peticion vieja de prueba";
         } finally {
-          attachedImages = savedImgs;
+          attachedImage = savedImg;
           if ($('imageAttachedInfo')) $('imageAttachedInfo').style.display = savedInfoDisplay || "none";
           if ($('userRequest')) $('userRequest').value = savedRequest || "";
           if (savedHistory) localStorage.setItem(STORAGE_KEY, savedHistory); else localStorage.removeItem(STORAGE_KEY);
-        }
-      } },
-    { id: "T-AI-20", name: "Múltiples imágenes adjuntas (2-3): tope de MAX_ATTACHED_IMAGES respetado y todas viajan a la lista adjunta (fix v498, mejora pedida por el usuario: avería + vista general de la máquina a la vez)", run: async () => {
-        const savedImgs = attachedImages, savedInfoDisplay = $('imageAttachedInfo')?.style.display;
-        try {
-          attachedImages = [];
-          attachedImages.push({ data: "ZmFrZQ==", mediaType: "image/jpeg", name: "a.jpg" });
-          attachedImages.push({ data: "ZmFrZQ==", mediaType: "image/png", name: "b.png" });
-          attachedImages.push({ data: "ZmFrZQ==", mediaType: "image/jpeg", name: "c.jpg" });
-          const cappedAtThree = attachedImages.length === MAX_ATTACHED_IMAGES;
-          removeAttachedImage(1);
-          const removalWorked = attachedImages.length === 2 && attachedImages[0].name === "a.jpg" && attachedImages[1].name === "c.jpg";
-          return cappedAtThree && removalWorked;
-        } finally {
-          attachedImages = savedImgs;
-          if ($('imageAttachedInfo')) $('imageAttachedInfo').style.display = savedInfoDisplay || "none";
         }
       } },
     { id: "T-AI-17", name: "Imagen adjunta: el system prompt pide un campo 'imageContent' objetivo, separado del diagnóstico (fix v496 — el motivo real reportado por el usuario)", run: async () => {
         const of = window.fetch;
         let body = null;
         window.fetch = (url, opts) => { body = JSON.parse(opts.body); return Promise.resolve({ ok: true, json: async () => ({ content: [{ text: JSON.stringify({ explicitGoal:"x", inferredGoal:"y", desiredOutcome:"z", userPreferences:[], userConstraints:[], deliverablesExpected:["a"], subGoals:[{id:"SG-01",objective:"o",priority:"HIGH"}], requiredCapabilities:["T"], ambiguities:[], imageContent:"c" }) }] }) }); };
-        try { await aiUnderstandingDual("t", "sk-ant-fake", "", undefined, [{ data: "ZmFrZQ==", mediaType: "image/jpeg" }]); } finally { window.fetch = of; }
+        try { await aiUnderstandingDual("t", "sk-ant-fake", "", undefined, { data: "ZmFrZQ==", mediaType: "image/jpeg" }); } finally { window.fetch = of; }
         return body.system.includes("imageContent") && body.system.includes("NO concluyas aquí un diagnóstico");
       } },
     { id: "T-AI-18", name: "Imagen adjunta: 'imageContent' devuelto por la IA aparece como línea propia en los 5 formatos de salida, separado de 'IMAGEN ADJUNTA' (fix v496)", run: async () => {
         const of = window.fetch;
         window.fetch = () => Promise.resolve({ ok: true, json: async () => ({ content: [{ text: JSON.stringify({ explicitGoal:"x", inferredGoal:"y", desiredOutcome:"z", userPreferences:[], userConstraints:[], deliverablesExpected:["a"], subGoals:[{id:"SG-01",objective:"o",priority:"HIGH"}], requiredCapabilities:["T"], ambiguities:[], imageContent:"MARCADOR_CONTENIDO_IMG_XYZ" }) }] }) });
-        const fakeImage = [{ data: "ZmFrZQ==", mediaType: "image/jpeg" }];
+        const fakeImage = { data: "ZmFrZQ==", mediaType: "image/jpeg" };
         let ok = true;
         try {
           for (const adapter of ["GENERIC", "AKI", "CLAUDE", "CHATGPT", "LOCAL"]) {
@@ -3073,91 +2971,6 @@ const ejecutarTestsV401 = async () => {
         }
         return ok;
       } },
-    { id: "T-AI-21", name: "2 imágenes adjuntas a la vez llegan como 2 bloques/parts reales en la llamada a Claude y a Gemini (fix v498), y el system prompt pide describir cada una por separado", run: async () => {
-        const twoImages = [{ data: "aW1nMQ==", mediaType: "image/jpeg" }, { data: "aW1nMg==", mediaType: "image/png" }];
-        const of = window.fetch;
-        let claudeOk = false, geminiOk = false, sysOk = false;
-        try {
-          let body = null;
-          window.fetch = (url, opts) => { body = JSON.parse(opts.body); return Promise.resolve({ ok: true, json: async () => ({ content: [{ text: JSON.stringify({ explicitGoal:"x", inferredGoal:"y", desiredOutcome:"z", userPreferences:[], userConstraints:[], deliverablesExpected:["a"], subGoals:[{id:"SG-01",objective:"o",priority:"HIGH"}], requiredCapabilities:["T"], ambiguities:[] }) }] }) }); };
-          await aiUnderstandingDual("t", "sk-ant-fake", "", undefined, twoImages);
-          const imgBlocks = body.messages[0].content.filter(b => b.type === "image");
-          claudeOk = imgBlocks.length === 2 && imgBlocks[0].source.data === "aW1nMQ==" && imgBlocks[1].source.data === "aW1nMg==" && imgBlocks[1].source.media_type === "image/png";
-          sysOk = body.system.includes("2 imágenes") && body.system.includes("Imagen 1");
-
-          window.fetch = (url, opts) => { body = JSON.parse(opts.body); return Promise.resolve({ ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify({ explicitGoal:"x", inferredGoal:"y", desiredOutcome:"z", userPreferences:[], userConstraints:[], deliverablesExpected:["a"], subGoals:[{id:"SG-01",objective:"o",priority:"HIGH"}], requiredCapabilities:["T"], ambiguities:[] }) }] } }] }) }); };
-          await aiUnderstandingDual("t", "", "AIzaFake", undefined, twoImages);
-          const inlineParts = body.contents[0].parts.filter(p => p.inline_data);
-          geminiOk = inlineParts.length === 2 && inlineParts[0].inline_data.data === "aW1nMQ==" && inlineParts[1].inline_data.data === "aW1nMg==";
-        } finally { window.fetch = of; }
-        return claudeOk && geminiOk && sysOk;
-      } },
-    { id: "T-AI-22", name: "Proveedor genérico (compatible OpenAI): request va con Authorization Bearer, body con model/messages/response_format, y la respuesta se parsea bien (fix v498)", run: async () => {
-        const of = window.fetch;
-        let url = null, opts = null;
-        window.fetch = (u, o) => { url = u; opts = o; return Promise.resolve({ ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify({ explicitGoal:"x", inferredGoal:"y", desiredOutcome:"z", userPreferences:[], userConstraints:[], deliverablesExpected:["a"], subGoals:[{id:"SG-01",objective:"o",priority:"HIGH"}], requiredCapabilities:["GENERIC_OK"], ambiguities:[] }) } }] }) }); };
-        let r;
-        try {
-          r = await aiUnderstandingDual("t", "", "", undefined, undefined, { baseUrl: "https://api.example.com/v1", apiKey: "sk-generic-fake", model: "gpt-4o" });
-        } finally { window.fetch = of; }
-        const body = JSON.parse(opts.body);
-        return url === "https://api.example.com/v1/chat/completions" && opts.headers.Authorization === "Bearer sk-generic-fake"
-          && body.model === "gpt-4o" && body.messages[1].content === "t" && r.requiredCapabilities.includes("GENERIC_OK");
-      } },
-    { id: "T-AI-23", name: "Cascada de 3 proveedores: Claude falla, Gemini falla, cae al genérico como último respaldo (fix v498)", run: async () => {
-        const of = window.fetch; let hosts = [];
-        window.fetch = (url) => {
-          const host = new URL(url).host; hosts.push(host);
-          if (host === "api.anthropic.com" || host === "generativelanguage.googleapis.com") return Promise.resolve({ ok: false, status: 500 });
-          return Promise.resolve({ ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify({ explicitGoal:"x", inferredGoal:"y", desiredOutcome:"z", userPreferences:[], userConstraints:[], deliverablesExpected:["a"], subGoals:[{id:"SG-01",objective:"o",priority:"HIGH"}], requiredCapabilities:["T"], ambiguities:[] }) } }] }) });
-        };
-        let r;
-        try {
-          r = await aiUnderstandingDual("t", "sk-ant-fake", "AIzaFake", undefined, undefined, { baseUrl: "https://api.example.com/v1", apiKey: "sk-generic-fake", model: "gpt-4o" });
-        } finally { window.fetch = of; }
-        return hosts.length === 3 && hosts[2] === "api.example.com" && r.source === "ai";
-      } },
-    { id: "T-AI-24", name: "Proveedor genérico incompleto (falta URL o modelo) no se intenta ni cuenta como configurado — compilarV401 sigue tratando la petición como local si no hay ninguna otra key (fix v498)", run: async () => {
-        const of = window.fetch; let calls = 0;
-        window.fetch = () => { calls++; return Promise.resolve({ ok: true, json: async () => ({}) }); };
-        let r;
-        try {
-          r = await compilarV401("Ayúdame a organizar mi semana", "", "", "GENERIC", "", "", undefined, undefined, null, { baseUrl: "", apiKey: "sk-generic-fake", model: "" });
-        } finally { window.fetch = of; }
-        return calls === 0 && !r.error && r.ir.understanding.source === "local";
-      } },
-    { id: "T-AI-25", name: "Imagen adjunta + la IA falla (cae a local): la imagen ya NO desaparece en silencio — el contrato declara explícitamente que no se pudo analizar (bug real, fix v499)", run: async () => {
-        const of = window.fetch;
-        window.fetch = () => Promise.reject(new Error("Load failed"));
-        const fakeImage = [{ data: "ZmFrZQ==", mediaType: "image/jpeg" }];
-        let r;
-        try {
-          r = await compilarV401("Analiza la foto. Se me ha roto la tapa y necesito comprar una igual", "", "", "GENERIC", "sk-ant-fake", "", "es", undefined, fakeImage);
-        } finally { window.fetch = of; }
-        return !r.error && r.ir.understanding.source === "local"
-          && r.ir.understanding.ambiguities.some(a => a.includes("no pudo ser analizada") && a.includes("Load failed"))
-          && r.executablePrompt.includes("no pudo ser analizada");
-      } },
-    { id: "T-AI-26", name: "Imagen adjunta: el system prompt exige analizarla SIEMPRE sin que el texto lo pida, y profundizar al máximo en cualquier pista concreta que dé el texto (p. ej. una etiqueta dañada) (fix v500)", run: async () => {
-        const of = window.fetch;
-        let body = null;
-        window.fetch = (url, opts) => { body = JSON.parse(opts.body); return Promise.resolve({ ok: true, json: async () => ({ content: [{ text: JSON.stringify({ explicitGoal:"x", inferredGoal:"y", desiredOutcome:"z", userPreferences:[], userConstraints:[], deliverablesExpected:["a"], subGoals:[{id:"SG-01",objective:"o",priority:"HIGH"}], requiredCapabilities:["T"], ambiguities:[] }) }] }) }); };
-        try { await aiUnderstandingDual("en la foto hay una etiqueta, ten en cuenta si está en mal estado para intentar averiguar qué ponía", "sk-ant-fake", "", undefined, [{ data: "ZmFrZQ==", mediaType: "image/jpeg" }]); } finally { window.fetch = of; }
-        return body.system.includes("SIEMPRE, sin que el usuario tenga que pedirlo") && body.system.includes("profundiza específicamente en esa pista");
-      } },
-    { id: "T-AI-27", name: "Imagen adjunta: el contrato final avisa de que hay que volver a adjuntar la imagen ORIGINAL si se usa en otra IA/conversación — el texto de imageContent no la sustituye (bug real, fix v501)", run: async () => {
-        const of = window.fetch;
-        window.fetch = () => Promise.resolve({ ok: true, json: async () => ({ content: [{ text: JSON.stringify({ explicitGoal:"x", inferredGoal:"y", desiredOutcome:"z", userPreferences:[], userConstraints:[], deliverablesExpected:["a"], subGoals:[{id:"SG-01",objective:"o",priority:"HIGH"}], requiredCapabilities:["T"], ambiguities:[], imageContent:"c" }) }] }) });
-        const fakeImage = [{ data: "ZmFrZQ==", mediaType: "image/jpeg" }];
-        let ok = true;
-        try {
-          for (const adapter of ["GENERIC", "AKI", "CLAUDE", "CHATGPT", "LOCAL"]) {
-            const r = await compilarV401("t", "", "", adapter, "sk-ant-fake", "", "es", undefined, fakeImage);
-            if (!/vuelve a adjuntar/i.test(r.executablePrompt)) ok = false;
-          }
-        } finally { window.fetch = of; }
-        return ok;
-      } },
   ];
   for (const t of aiTests) {
     let ok = false;
@@ -3175,9 +2988,23 @@ const ejecutarTestsV401 = async () => {
 
 window.onload = () => {
   renderHistory();
+  try {
+    const savedClaude = localStorage.getItem('universalPromptCompiler_savedApiKeyClaude');
+    const savedGemini = localStorage.getItem('universalPromptCompiler_savedApiKeyGemini');
+    if ((savedClaude || savedGemini) && $('rememberKey')) {
+      if (savedClaude && $('apiKeyClaude')) $('apiKeyClaude').value = savedClaude;
+      if (savedGemini && $('apiKeyGemini')) $('apiKeyGemini').value = savedGemini;
+      if ($('useClaude')) $('useClaude').checked = localStorage.getItem('universalPromptCompiler_useClaude') === '1';
+      if ($('useGemini')) $('useGemini').checked = localStorage.getItem('universalPromptCompiler_useGemini') === '1';
+      $('rememberKey').checked = true;
+    }
+  } catch (e) {}
   updateApiKeyStatusDot();
   if (SpeechRecognitionAPI && $('btnMic')) $('btnMic').style.display = "inline-flex";
-  logTrace("SYS", "Universal Semantic Task Compiler V401 (AI-Core) inicializado correctamente.");
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
+  logTrace("SYS", "Universal Semantic Task Compiler V401 (AI-Core, PWA) inicializado correctamente.");
 };
 </script>
 </body>
